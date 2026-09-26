@@ -1,0 +1,2 @@
+=> create model and save it 
+=> create one main method that take input and give specific output
