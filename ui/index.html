@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Model 1 Flood Prediction</title>
+  <style>
+    body { font: 16px system-ui, sans-serif; max-width: 760px; margin: 32px auto; padding: 0 16px; }
+    form { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+    label { display: grid; gap: 4px; } input { padding: 8px; }
+    button { grid-column: 1 / -1; padding: 11px; cursor: pointer; }
+    #result { margin-top: 24px; font-size: 1.4rem; font-weight: 700; }
+    #result pre { white-space: pre-wrap; font: 0.95rem ui-monospace, monospace; }
+    .error { color: #b00020; }
+  </style>
+</head>
+<body>
+  <h1>Flash-flood probability</h1>
+  <p>Model 1 prediction horizon: 3 hours.</p>
+  <form id="form"></form>
+  <div id="result" aria-live="polite"></div>
+  <script>
+    const features = [
+      "rain_1h", "rain_3h", "rain_6h", "rain_24h", "rain_72h",
+      "max_rain_intensity", "rainfall_rate", "soil_moisture",
+      "soil_moisture_change", "slope", "flow_accumulation",
+      "distance_to_river", "twi", "historical_flood_count"
+    ];
+    const form = document.querySelector("#form");
+    features.forEach(name => {
+      const label = document.createElement("label");
+      label.textContent = name;
+      label.innerHTML += `<input name="${name}" type="number" step="any" required>`;
+      form.appendChild(label);
+    });
+    const button = document.createElement("button");
+    button.textContent = "Predict";
+    button.type = "submit";
+    form.appendChild(button);
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      const payload = Object.fromEntries(new FormData(form));
+      for (const key of features) payload[key] = Number(payload[key]);
+      const result = document.querySelector("#result");
+      result.className = "";
+      result.textContent = "Loading...";
+      try {
+        const response = await fetch("http://127.0.0.1:8000/api/model1/predict", {
+          method: "POST", headers: {"Content-Type": "application/json"},
+          body: JSON.stringify(payload)
+        });
+
+        const rawBody = await response.text();
+        let data;
+        try {
+          data = JSON.parse(rawBody);
+          console.log(data)
+        } catch {
+          data = { error: "The server returned an invalid JSON response.", status: response.status };
+        }
+        if (!response.ok) {
+          result.className = "error";
+          result.innerHTML = `<pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre>`;
+          return;
+        }
+        result.textContent = `Data:- ${JSON.stringify(data)}`;
+      } catch (error) {
+        result.className = "error";
+        result.innerHTML = `<pre>${escapeHtml(JSON.stringify({
+          error: "Could not connect to the prediction server.",
+          details: error.message
+        }, null, 2))}</pre>`;
+      }
+    });
+
+    function escapeHtml(value) {
+      return value.replace(/[&<>"']/g, character => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
+      }[character]));
+    }
+  </script>
+</body>
+</html>

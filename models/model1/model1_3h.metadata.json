@@ -1,0 +1,23 @@
+{
+  "model": "RandomForestClassifier",
+  "prediction_horizon_hours": 3,
+  "features": [
+    "rain_1h",
+    "rain_3h",
+    "rain_6h",
+    "rain_24h",
+    "rain_72h",
+    "max_rain_intensity",
+    "rainfall_rate",
+    "soil_moisture",
+    "soil_moisture_change",
+    "slope",
+    "flow_accumulation",
+    "distance_to_river",
+    "twi",
+    "historical_flood_count"
+  ],
+  "synthetic_data": true,
+  "warning": "Prototype only; retrain with verified historical events.",
+  "rows": 6000
+}
