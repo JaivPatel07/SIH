@@ -1,0 +1,60 @@
+{
+  "project": "HIM-SHIELD",
+  "component": "Model 2",
+  "model_name": "Landslide Susceptibility / Dynamic Risk Model",
+  "static_model": {
+    "algorithm": "Random Forest",
+    "task": "Landslide susceptibility classification",
+    "output": "Static landslide susceptibility probability",
+    "threshold": 0.4,
+    "training_grid": "1 km x 1 km",
+    "study_region": "Uttarakhand, India",
+    "training_samples": 42254,
+    "test_samples": 10420,
+    "spatial_grouping": "Approximately 10 km x 10 km",
+    "spatial_group_overlap": 0,
+    "processed_feature_count": 26
+  },
+  "features": {
+    "total": 17,
+    "numeric": [
+      "elevation",
+      "slope",
+      "aspect_sin",
+      "aspect_cos",
+      "curvature",
+      "upstream_area",
+      "TWI",
+      "drainage_density",
+      "distance_to_drainage",
+      "clay_surface",
+      "organic_carbon_surface",
+      "NDVI",
+      "mean_annual_rainfall",
+      "max_daily_rainfall",
+      "mean_monsoon_rainfall",
+      "high_rain_days"
+    ],
+    "categorical": [
+      "landcover"
+    ]
+  },
+  "important_architecture_note": "Soil moisture is intentionally excluded from the static susceptibility model. Current soil moisture is used as a dynamic trigger in the Risk Engine.",
+  "historical_rainfall_features": [
+    "mean_annual_rainfall",
+    "max_daily_rainfall",
+    "mean_monsoon_rainfall",
+    "high_rain_days"
+  ],
+  "label_definition": "1 = at least one historical landslide inventory point occurs in the 1 km grid cell; 0 = no inventory point occurs in the cell. A zero label does not prove that no landslide ever occurred.",
+  "preprocessing": {
+    "numeric": [
+      "Median imputation",
+      "StandardScaler"
+    ],
+    "categorical": [
+      "Most-frequent imputation",
+      "OneHotEncoder(handle_unknown='ignore')"
+    ]
+  }
+}
