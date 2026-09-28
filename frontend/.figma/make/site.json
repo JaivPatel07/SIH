@@ -1,0 +1,10 @@
+{
+  "description": "Provides hyper-local flash flood and landslide risk alerts with interactive maps, forecasts, and shelter info to help users act early and stay safe.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
