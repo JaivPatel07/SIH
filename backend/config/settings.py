@@ -13,7 +13,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.middleware.common.CommonMiddleware",
 ]
-INSTALLED_APPS = ["django.contrib.contenttypes", "django.contrib.staticfiles"]
+INSTALLED_APPS = ["django.contrib.contenttypes", "django.contrib.staticfiles", "flood_api"]
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",

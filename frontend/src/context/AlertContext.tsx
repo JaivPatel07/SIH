@@ -1,7 +1,8 @@
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { fetchAlerts, createAlert as postAlert, type AlertRecord } from "../services/riskEngineService";
 
-export type AlertType = "Flood" | "Landslide" | "Weather" | "Evacuation";
-export type AlertSeverity = "Moderate" | "High" | "Critical";
+export type AlertType = "Flood" | "Landslide" | "Weather" | "Evacuation" | "General Warning";
+export type AlertSeverity = "Advisory" | "Warning" | "Emergency" | "Moderate" | "High" | "Critical";
 
 export type PravaahAlert = {
   id: string;
@@ -16,61 +17,59 @@ export type PravaahAlert = {
   fresh?: boolean;
 };
 
-const seededAlerts: PravaahAlert[] = [
-  {
-    id: "seed-1",
-    area: "Dharali",
-    type: "Flood",
-    severity: "High",
-    title: "Flash-flood risk increasing near Dharali",
-    message: "Rainfall is increasing along the Bhagirathi corridor. Avoid riverbanks and low-lying crossings until conditions ease.",
-    action: "Move away from river edges and follow marked safe routes.",
-    timestamp: "12 min ago",
-    sentBy: "authority",
-  },
-  {
-    id: "seed-2",
-    area: "Sukhi Gaon",
-    type: "Evacuation",
-    severity: "Critical",
-    title: "Precautionary evacuation advised in Ward 3",
-    message: "Residents should proceed to the nearest verified shelter using the marked safe route and keep contact devices charged.",
-    action: "Carry essential medicines and assist children and older residents.",
-    timestamp: "28 min ago",
-    sentBy: "authority",
-  },
-  {
-    id: "seed-3",
-    area: "Bhagirathi Valley",
-    type: "Weather",
-    severity: "Moderate",
-    title: "Heavy shower window expected through the evening",
-    message: "Peak local rainfall is forecast for the next few hours. Keep emergency supplies and phones charged and avoid unnecessary travel.",
-    action: "Avoid unnecessary travel during the peak rainfall window.",
-    timestamp: "1 hr ago",
-    sentBy: "authority",
-  },
-];
-
 type AlertInput = Omit<PravaahAlert, "id" | "timestamp" | "sentBy" | "fresh">;
 
 type AlertContextValue = {
   alerts: PravaahAlert[];
   unread: number;
   sentCount: number;
-  latestAlert: PravaahAlert;
-  sendAlert: (alert: AlertInput) => PravaahAlert;
+  latestAlert: PravaahAlert | null;
+  sendAlert: (alert: AlertInput) => Promise<PravaahAlert>;
   markAllRead: () => void;
+  refreshAlerts: () => void;
 };
 
 const AlertContext = createContext<AlertContextValue | null>(null);
 
 export function AlertProvider({ children }: { children: React.ReactNode }) {
-  const [alerts, setAlerts] = useState(seededAlerts);
-  const [unread, setUnread] = useState(seededAlerts.length);
-  const [sentCount, setSentCount] = useState(seededAlerts.length);
+  const [alerts, setAlerts] = useState<PravaahAlert[]>([]);
+  const [unread, setUnread] = useState(0);
+  const [sentCount, setSentCount] = useState(0);
 
-  const sendAlert = (input: AlertInput) => {
+  const refreshAlerts = () => {
+    fetchAlerts().then(data => {
+      const formatted: PravaahAlert[] = data.map(a => ({
+        id: `alert-${a.id}`,
+        area: a.location_name || "Unknown",
+        type: (a.alert_type as AlertType) || "Weather",
+        severity: (a.severity as AlertSeverity) || "Moderate",
+        title: `${a.severity} ${a.alert_type} Warning`,
+        message: a.message,
+        action: "Follow official instructions.",
+        timestamp: a.created_at ? new Date(a.created_at).toLocaleString() : "Just now",
+        sentBy: "authority",
+        fresh: false
+      }));
+      setAlerts(formatted);
+      setSentCount(formatted.length);
+    }).catch(e => console.error(e));
+  };
+
+  useEffect(() => {
+    refreshAlerts();
+    const interval = setInterval(refreshAlerts, 10000); // Polling every 10s
+    return () => clearInterval(interval);
+  }, []);
+
+  const sendAlert = async (input: AlertInput) => {
+    const record: AlertRecord = {
+      location_name: input.area,
+      alert_type: input.type,
+      severity: input.severity,
+      message: input.message,
+      authority: "District Authority",
+    };
+    await postAlert(record);
     const alert: PravaahAlert = {
       ...input,
       id: `alert-${Date.now()}`,
@@ -81,6 +80,7 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
     setAlerts((current) => [alert, ...current]);
     setUnread((current) => current + 1);
     setSentCount((current) => current + 1);
+    
     window.setTimeout(() => {
       setAlerts((current) => current.map((item) => (item.id === alert.id ? { ...item, fresh: false } : item)));
     }, 2200);
@@ -88,7 +88,7 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
   };
 
   const value = useMemo(
-    () => ({ alerts, unread, sentCount, latestAlert: alerts[0], sendAlert, markAllRead: () => setUnread(0) }),
+    () => ({ alerts, unread, sentCount, latestAlert: alerts.length > 0 ? alerts[0] : null, sendAlert, markAllRead: () => setUnread(0), refreshAlerts }),
     [alerts, unread, sentCount],
   );
   return <AlertContext.Provider value={value}>{children}</AlertContext.Provider>;

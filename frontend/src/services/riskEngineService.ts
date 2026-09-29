@@ -51,7 +51,8 @@ export const operationalRisk = {
 };
 
 export async function fetchRiskEngine(latitude: number, longitude: number): Promise<RiskEngineResponse> {
-  const response = await fetch("http://127.0.0.1:8000/api/risk-engine/", {
+  const API_BASE = `http://${window.location.hostname}:8000`;
+  const response = await fetch(`${API_BASE}/api/risk-engine/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ latitude, longitude }),
@@ -62,5 +63,59 @@ export async function fetchRiskEngine(latitude: number, longitude: number): Prom
     throw new Error(message || "Unable to fetch risk data.");
   }
 
+  return response.json();
+}
+
+export type RiskHistoryEntry = {
+  id: number;
+  latitude: number;
+  longitude: number;
+  risk_score: number | null;
+  risk_category: string | null;
+  rainfall_1d: number | null;
+  soil_moisture: number | null;
+  created_at: string;
+};
+
+export async function fetchRiskHistory(latitude: number, longitude: number): Promise<RiskHistoryEntry[]> {
+  const API_BASE = `http://${window.location.hostname}:8000`;
+  const response = await fetch(`${API_BASE}/api/risk-history/?latitude=${latitude}&longitude=${longitude}`);
+  if (!response.ok) {
+    throw new Error("Unable to fetch risk history.");
+  }
+  return response.json();
+}
+
+export type AlertRecord = {
+  id?: number;
+  location_name?: string;
+  latitude?: number;
+  longitude?: number;
+  risk_category?: string;
+  alert_type: string;
+  severity: string;
+  message: string;
+  authority?: string;
+  created_at?: string;
+};
+
+export async function fetchAlerts(): Promise<AlertRecord[]> {
+  const API_BASE = `http://${window.location.hostname}:8000`;
+  const response = await fetch(`${API_BASE}/api/alerts/`);
+  if (!response.ok) {
+    throw new Error("Unable to fetch alerts.");
+  }
+  return response.json();
+}
+
+export async function createAlert(alert: AlertRecord): Promise<{ success: boolean; id: number }> {
+  const response = await fetch("http://127.0.0.1:8000/api/alerts/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(alert),
+  });
+  if (!response.ok) {
+    throw new Error("Unable to create alert.");
+  }
   return response.json();
 }
