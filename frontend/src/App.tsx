@@ -1,6 +1,8 @@
 import { createElement, useEffect, useMemo, useState, useId } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { BrowserRouter, Navigate, Route as RouterRoute, Routes, useLocation, useNavigate } from "react-router-dom";
+import { CircleMarker, MapContainer, Popup, TileLayer, useMapEvents } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
 import {
   AlertTriangle,
   Bell,
@@ -54,6 +56,7 @@ import { AlertProvider, AlertSeverity, AlertType, useAlerts } from "./context/Al
 import { RoleProvider, useRole } from "./context/RoleContext";
 import { flashFloodModel } from "./services/model1Service";
 import { landslideModel } from "./services/model2Service";
+import { fetchRiskEngine, type RiskEngineResponse } from "./services/riskEngineService";
 import { operationalRisk } from "./services/riskEngineService";
 
 type Screen = "landing" | "dashboard" | "authority-dashboard" | "map" | "forecast" | "landslide" | "shelters" | "alerts" | "sensors" | "analytics";
@@ -176,7 +179,7 @@ function Brand({ light = false }: { light?: boolean }) {
       <div>
         <div className={`text-lg font-extrabold tracking-[0.16em] ${light ? "text-white" : "text-slate-900"}`}>PRAVAAH</div>
         <div className={`text-[9px] font-bold uppercase tracking-[0.14em] ${light ? "text-slate-400" : "text-slate-500"}`}>
-          Flow of safety
+          Risk intelligence
         </div>
       </div>
     </div>
@@ -196,11 +199,11 @@ function Footer({ onNavigate, compact = false }: { onNavigate: (screen: Screen) 
           <div className="footer-brand-col">
             <Brand light />
             <p className="mt-3 text-xs leading-relaxed text-slate-400 max-w-sm">
-              PRAVAAH is India's premier AI-powered hyper-local flash flood &amp; landslide early warning platform. Built specifically for high-risk Himalayan river basins to protect vulnerable communities and support disaster emergency response.
+              PRAVAAH supports Uttarakhand disaster response with location-based flood and landslide intelligence. It combines live weather, soil moisture, elevation, and shelter information to help communities act early.
             </p>
             <div className="mt-4 flex items-center gap-2">
               <span className="live-dot" />
-              <span className="text-[11px] font-semibold text-emerald-400">All 38 IoT Sensor Nodes Live &amp; Operational</span>
+              <span className="text-[11px] font-semibold text-emerald-400">Live monitoring for the Bhagirathi risk corridor</span>
             </div>
           </div>
 
@@ -246,7 +249,7 @@ function Footer({ onNavigate, compact = false }: { onNavigate: (screen: Screen) 
                 <span className="font-bold">011-24363260</span>
               </div>
               <div className="mt-2 text-[10px] text-slate-500">
-                Bhagirathi &amp; Yamuna River Basins • Pilot Zone Uttarkashi
+                Uttarkashi district, Uttarakhand • Real-time risk monitoring
               </div>
             </div>
           </div>
@@ -254,12 +257,12 @@ function Footer({ onNavigate, compact = false }: { onNavigate: (screen: Screen) 
 
         <div className="footer-bottom">
           <div className="text-xs text-slate-400">
-            © {new Date().getFullYear()} PRAVAAH Disaster-Tech. Flow of Safety — Hyper-Local Early Warning System.
+            © {new Date().getFullYear()} PRAVAAH. Operational risk intelligence for mountain communities.
           </div>
           <div className="flex items-center gap-4 text-xs text-slate-400">
-            <span>Community Safety</span>
+            <span>Community safety</span>
             <span>•</span>
-            <span>Physics &amp; AI Engine</span>
+            <span>Environment + AI model layer</span>
             <span>•</span>
             <button className="hover:text-cyan-300 text-slate-300 font-semibold" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
               Back to Top ↑
@@ -272,176 +275,63 @@ function Footer({ onNavigate, compact = false }: { onNavigate: (screen: Screen) 
 }
 
 function WhyChoosePravaah({ onNavigate }: { onNavigate: (screen: Screen) => void }) {
-  const [comparisonMode, setComparisonMode] = useState<"pravaah" | "traditional">("pravaah");
-
   const features = [
     {
       icon: Clock,
-      title: "12-Minute Predictive Lead Time",
-      desc: "Hydrological stream-gauging algorithms analyze flash flood runoff potential up to 15 minutes before waters breach village riverbanks.",
-      stat: "+12 Min",
-      statLabel: "Lead Time Boost",
+      title: "12-minute lead time",
+      desc: "Early warnings generated from live environmental inputs before critical river and slope conditions intensify.",
+      stat: "+12m",
+      statLabel: "lead time",
     },
     {
       icon: Cpu,
-      title: "Multi-Model Risk Intelligence",
-      desc: "Combines Model 1 (Flash Flood Runoff) and Model 2 (Landslide Stability) with live soil moisture sensors for 99.2% verified precision.",
-      stat: "99.2%",
-      statLabel: "Prediction Accuracy",
+      title: "Dual risk intelligence",
+      desc: "Combining flood prediction with landslide triggers gives a clearer operational picture for field teams and residents.",
+      stat: "2x",
+      statLabel: "risk models",
     },
     {
-      icon: Navigation,
-      title: "Dynamic Safe Shelter Navigation",
-      desc: "Interactive turn-by-turn routing guides citizens directly to verified relief shelters based on real-time room availability and road access.",
-      stat: "4 Active",
-      statLabel: "Verified Shelters",
-    },
-    {
-      icon: Radio,
-      title: "Offline Mesh Network Resilience",
-      desc: "Pre-caches maps and emergency directories while broadcasting emergency siren beacons even during severe mountain mobile outages.",
-      stat: "100%",
-      statLabel: "Offline Resilience",
+      icon: MapPin,
+      title: "Hyper-local awareness",
+      desc: "Alerts are grounded in the selected location rather than vague district-level reports, making decisions more actionable.",
+      stat: "24",
+      statLabel: "areas tracked",
     },
     {
       icon: ShieldCheck,
-      title: "Dual View for Citizens & Control Rooms",
-      desc: "Delivers clean, jargon-free safety actions for villagers while equipping district authorities with full telemetry control room monitoring.",
-      stat: "1-Click",
-      statLabel: "Emergency Alert",
-    },
-    {
-      icon: Layers3,
-      title: "Hyper-Local Sub-Catchment Resolution",
-      desc: "Replaces vague district alerts with exact sub-valley threat mapping for Dharali, Sukhi Gaon, Kedarpur, and surrounding hamlets.",
-      stat: "24",
-      statLabel: "Villages Monitored",
+      title: "Safe evacuation guidance",
+      desc: "Residents can see shelter options and emergency context without being forced through cluttered or confusing dashboards.",
+      stat: "4",
+      statLabel: "verified shelters",
     },
   ];
 
   return (
-    <section className="why-pravaah-section py-20 px-6">
+    <section className="why-pravaah-section py-16 px-6">
       <div className="max-w-7xl mx-auto">
-        <div className="text-center max-w-3xl mx-auto mb-16">
+        <div className="text-center max-w-3xl mx-auto mb-12">
           <div className="eyebrow mx-auto mb-3">
-            <ShieldCheck size={14} className="text-cyan-400" /> Proven Disaster-Tech Superiority
+            <ShieldCheck size={14} className="text-cyan-400" /> Built for fast, local decisions
           </div>
           <Heading level={2} className="text-3xl md:text-5xl font-extrabold text-white tracking-tight">
-            Why PRAVAAH Proves to Be the Best Choice
+            Better situational awareness for mountain communities
           </Heading>
           <p className="mt-4 text-base text-slate-300 leading-relaxed">
-            Traditional disaster management relies on delayed, broad weather reports. PRAVAAH provides hyper-local stream sensors, dual-AI prediction, and live shelter guidance that save critical lives.
+            PRAVAAH gives teams and citizens the clearest picture of what is happening now, what is likely next, and where to act with confidence.
           </p>
         </div>
 
-        <div className="mb-16 rounded-2xl border border-white/10 bg-slate-900/80 p-6 md:p-10 shadow-2xl backdrop-blur-xl">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6 pb-8 border-b border-white/10">
-            <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-cyan-400">Head-to-Head Proof</span>
-              <h3 className="text-xl md:text-2xl font-extrabold text-white mt-1">
-                PRAVAAH Smart Engine vs. Legacy Alert Systems
-              </h3>
-            </div>
-            <div className="flex p-1 bg-slate-800 rounded-xl border border-white/10">
-              <button
-                onClick={() => setComparisonMode("pravaah")}
-                className={`px-5 py-2.5 text-xs font-extrabold rounded-lg transition-all ${
-                  comparisonMode === "pravaah"
-                    ? "bg-teal-500 text-white shadow-lg shadow-teal-500/25"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                PRAVAAH AI Engine
-              </button>
-              <button
-                onClick={() => setComparisonMode("traditional")}
-                className={`px-5 py-2.5 text-xs font-extrabold rounded-lg transition-all ${
-                  comparisonMode === "traditional"
-                    ? "bg-slate-700 text-white"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                Traditional Methods
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-            {comparisonMode === "pravaah" ? (
-              <>
-                <div className="p-5 rounded-xl bg-teal-950/40 border border-teal-500/30 text-white">
-                  <div className="text-xs font-bold text-teal-400 uppercase tracking-wider">Warning Lead Time</div>
-                  <div className="text-2xl font-extrabold mt-2 text-white flex items-center gap-2">
-                    <Zap className="text-teal-400" size={20} /> 12–15 Minutes Lead
-                  </div>
-                  <p className="mt-3 text-xs text-slate-300 leading-relaxed">
-                    Automated IoT sensor telemetry notifies residents before river channels overflow, enabling calm, planned evacuation.
-                  </p>
-                </div>
-                <div className="p-5 rounded-xl bg-teal-950/40 border border-teal-500/30 text-white">
-                  <div className="text-xs font-bold text-teal-400 uppercase tracking-wider">Geographic Precision</div>
-                  <div className="text-2xl font-extrabold mt-2 text-white flex items-center gap-2">
-                    <MapPin className="text-teal-400" size={20} /> Sub-Village Resolution
-                  </div>
-                  <p className="mt-3 text-xs text-slate-300 leading-relaxed">
-                    Pinpoints exact affected wards and slopes rather than sending false panic alarms to an entire 1,000 sq km district.
-                  </p>
-                </div>
-                <div className="p-5 rounded-xl bg-teal-950/40 border border-teal-500/30 text-white">
-                  <div className="text-xs font-bold text-teal-400 uppercase tracking-wider">Actionable Safety</div>
-                  <div className="text-2xl font-extrabold mt-2 text-white flex items-center gap-2">
-                    <Building2 className="text-teal-400" size={20} /> Live Shelter Guidance
-                  </div>
-                  <p className="mt-3 text-xs text-slate-300 leading-relaxed">
-                    Guides users directly to open relief shelters with real-time room capacity and verified active road accessibility.
-                  </p>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="p-5 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-400">
-                  <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">Warning Lead Time</div>
-                  <div className="text-2xl font-extrabold mt-2 text-slate-300 flex items-center gap-2">
-                    Delayed / Post-Event
-                  </div>
-                  <p className="mt-3 text-xs text-slate-400 leading-relaxed">
-                    Manual weather bulletins issued hours after heavy rain starts, leaving villagers with zero reaction time.
-                  </p>
-                </div>
-                <div className="p-5 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-400">
-                  <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">Geographic Precision</div>
-                  <div className="text-2xl font-extrabold mt-2 text-slate-300 flex items-center gap-2">
-                    District-Wide Vague Alerts
-                  </div>
-                  <p className="mt-3 text-xs text-slate-400 leading-relaxed">
-                    Generic "Yellow Alert for Uttarkashi" without specifying which valley or river tributary is at risk.
-                  </p>
-                </div>
-                <div className="p-5 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-400">
-                  <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">Actionable Safety</div>
-                  <div className="text-2xl font-extrabold mt-2 text-slate-300 flex items-center gap-2">
-                    Static SMS Only
-                  </div>
-                  <p className="mt-3 text-xs text-slate-400 leading-relaxed">
-                    No map navigation, no shelter updates, leaving displaced citizens searching blindly in heavy storms.
-                  </p>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
           {features.map((item) => {
             const Icon = item.icon;
             return (
               <div
                 key={item.title}
-                className="group rounded-2xl border border-white/10 bg-slate-900/60 p-6 backdrop-blur-md transition-all hover:border-teal-500/50 hover:bg-slate-900/90 hover:shadow-xl hover:shadow-teal-500/10"
+                className="group rounded-2xl border border-white/10 bg-slate-900/60 p-5 backdrop-blur-md transition-all hover:border-teal-500/40 hover:bg-slate-900/80"
               >
-                <div className="flex items-center justify-between mb-5">
-                  <div className="grid size-12 place-items-center rounded-xl bg-teal-500/15 text-teal-300 border border-teal-500/20 group-hover:scale-110 transition-transform">
-                    <Icon size={24} />
+                <div className="mb-5 flex items-center justify-between">
+                  <div className="grid size-11 place-items-center rounded-xl bg-teal-500/15 text-teal-300 border border-teal-500/20">
+                    <Icon size={20} />
                   </div>
                   <div className="text-right">
                     <div className="text-lg font-black text-teal-300">{item.stat}</div>
@@ -455,20 +345,20 @@ function WhyChoosePravaah({ onNavigate }: { onNavigate: (screen: Screen) => void
           })}
         </div>
 
-        <div className="mt-16 rounded-2xl bg-gradient-to-r from-teal-900/80 via-slate-900 to-cyan-950/80 border border-teal-500/30 p-8 md:p-12 flex flex-col md:flex-row items-center justify-between gap-8 text-center md:text-left shadow-2xl">
-          <div>
-            <h3 className="text-2xl md:text-3xl font-extrabold text-white">Ready to Explore Real-Time Risk Radar?</h3>
-            <p className="mt-2 text-sm text-slate-300 max-w-xl">
-              Access active stream gauges, soil moisture telemetry, shelter availability, and verified alerts across Bhagirathi Valley.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-3 shrink-0 justify-center">
-            <Button className="!px-6 !py-3.5 !text-sm" onClick={() => onNavigate("dashboard")}>
-              Launch Dashboard <Navigation size={17} />
-            </Button>
-            <Button variant="secondary" className="!px-6 !py-3.5 !text-sm !border-white/30 !bg-white/10 !text-white hover:!bg-white/20" onClick={() => onNavigate("map")}>
-              Explore Live Risk Map <MapPin size={17} />
-            </Button>
+        <div className="mt-12 rounded-2xl border border-teal-500/20 bg-gradient-to-r from-slate-900 via-slate-900 to-teal-950/80 p-7 md:p-10 shadow-2xl">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
+            <div>
+              <div className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-400">Operational view</div>
+              <h3 className="mt-2 text-2xl md:text-3xl font-extrabold text-white">Ready for the next alert window?</h3>
+            </div>
+            <div className="flex flex-wrap gap-3 justify-center">
+              <Button className="!px-6 !py-3 !text-sm" onClick={() => onNavigate("dashboard")}>
+                Open dashboard <Navigation size={16} />
+              </Button>
+              <Button variant="secondary" className="!px-6 !py-3 !text-sm !border-white/25 !bg-white/5 !text-white hover:!bg-white/10" onClick={() => onNavigate("map")}>
+                View risk map <MapPin size={16} />
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -589,14 +479,14 @@ function Landing({
         <div className="hero-content">
           <div className="hero-copy animate-rise">
             <div className="eyebrow">
-              <span className="h-px w-6 bg-cyan-400" /> Built for the mountains. Made for everyone.
+              <span className="h-px w-6 bg-cyan-400" /> Built for live mountain-risk decisions
             </div>
             <Heading level={1} className="hero-title">PRAVAAH</Heading>
             <Heading level={2} className="mt-5 max-w-3xl text-3xl font-bold leading-tight text-white md:text-5xl">
-              Hyper-Local Flash Flood &amp; Landslide Early Warning
+              Live flood and landslide risk by selected location
             </Heading>
-            <div className="mt-5 text-base text-slate-300">Real-time monitoring. Earlier warnings. Safer communities.</div>
-            <div className="mt-2 text-sm font-bold text-cyan-300">Know the Risk. Find Safety. Act Early.</div>
+            <div className="mt-5 text-base text-slate-300">Monitor real weather, soil, elevation, and terrain conditions before a hazard window intensifies.</div>
+            <div className="mt-2 text-sm font-bold text-cyan-300">Check the risk. Pick the safe route. Respond early.</div>
             <div className="mt-8 flex flex-wrap gap-3">
               <Button className="!px-6 !py-3.5" onClick={() => { setAuthority(false); onNavigate("dashboard"); }}>
                 Check My Area <MapPin size={17} />
@@ -621,17 +511,17 @@ function Landing({
                 <AlertTriangle size={22} />
               </div>
               <div>
-                <div className="font-bold text-slate-900">High flash-flood risk</div>
+                <div className="font-bold text-slate-900">High local flood risk</div>
                 <div className="mt-1 text-sm leading-relaxed text-slate-500">
-                  Upper valley • Next 2 hours
+                  Bhagirathi valley • Next 2 hours
                 </div>
               </div>
             </div>
             <div className="my-5 h-px bg-slate-100" />
             <div className="flex items-end justify-between">
               <div>
-                <div className="text-xs text-slate-500">Heavy rainfall expected</div>
-                <div className="mt-1 text-sm font-extrabold text-slate-900">Take precautions now</div>
+                <div className="text-xs text-slate-500">Weather input is active</div>
+                <div className="mt-1 text-sm font-extrabold text-slate-900">Review conditions before travel</div>
               </div>
               <Button onClick={() => onNavigate("map")}>View risk map</Button>
             </div>
@@ -746,17 +636,18 @@ function Topbar({ screen, onNavigate }: { screen: Screen; onNavigate: (screen: S
     <header className="topbar">
       <div>
         <div className="text-lg font-extrabold text-slate-900 md:text-xl">{names[screen]}</div>
-        <div className="hidden text-xs text-slate-500 sm:block">Uttarkashi, Uttarakhand • Monsoon monitoring</div>
+        <div className="hidden text-xs text-slate-500 sm:block">Uttarkashi district • live environmental monitoring</div>
       </div>
       <div className="ml-auto flex items-center gap-2 md:gap-3">
         <label className="search-box hidden lg:flex">
           <Search size={16} />
-          <TextField placeholder="Search village or location" aria-label="Search village" />
+          <TextField placeholder="Search location or village" aria-label="Search location" />
         </label>
         <div className="relative hidden md:block">
           <SelectField aria-label="Select region" defaultValue="Bhagirathi valley">
             <option>Bhagirathi valley</option>
-            <option>Yamuna valley</option>
+            <option>Yamuna corridor</option>
+            <option>Uttarkashi district</option>
           </SelectField>
           <ChevronDown className="pointer-events-none absolute right-3 top-3 text-slate-400" size={15} />
         </div>
@@ -787,7 +678,7 @@ function BottomNav({ screen, onNavigate }: { screen: Screen; onNavigate: (screen
       {items.map(({ id, label, icon: Icon }) => (
         <Button key={id} variant="ghost" className={screen === id ? "active" : ""} onClick={() => onNavigate(id)}>
           <Icon size={19} />
-          <span>{id === "dashboard" ? "Home" : label.replace("Rain ", "")}</span>
+          <span>{id === "dashboard" ? "Home" : id === "authority-dashboard" ? "Control" : label}</span>
         </Button>
       ))}
     </div>
@@ -816,92 +707,88 @@ function AppShell({
   );
 }
 
-function MapCanvas({ compact = false, selected, onSelect }: { compact?: boolean; selected?: string; onSelect?: (v: string) => void }) {
-  const uid = useId().replace(/:/g, "_");
-  const gridId = `grid_${uid}`;
-  const terrainId = `terrain_${uid}`;
-  const shadowId = `shadow_${uid}`;
-
+function MapCanvas({ compact = false, selected, selectedLocation, onSelect }: { compact?: boolean; selected?: string | { name: string; latitude: number; longitude: number }; selectedLocation?: { name: string; latitude: number; longitude: number } | null; onSelect?: (v: { name: string; latitude: number; longitude: number }) => void }) {
   const villages = [
-    { name: "Dharali", x: "48%", y: "35%", tone: "critical", risk: "Critical Risk" },
-    { name: "Sukhi Gaon", x: "69%", y: "49%", tone: "high", risk: "High Risk" },
-    { name: "Kedarpur", x: "25%", y: "58%", tone: "moderate", risk: "Moderate Risk" },
-    { name: "Bamoli", x: "75%", y: "75%", tone: "safe", risk: "Low Risk" },
-  ];
+    { name: "Dharali", latitude: 30.6739, longitude: 78.4827, tone: "critical", risk: "Critical Risk" },
+    { name: "Sukhi Gaon", latitude: 30.6521, longitude: 78.5189, tone: "high", risk: "High Risk" },
+    { name: "Kedarpur", latitude: 30.7148, longitude: 78.4023, tone: "moderate", risk: "Moderate Risk" },
+    { name: "Bamoli", latitude: 30.6243, longitude: 78.6042, tone: "safe", risk: "Low Risk" },
+  ] as const;
+
+  const selectedPoint = typeof selected === "string" ? null : selected ?? selectedLocation ?? null;
+  const selectedName = typeof selected === "string" ? selected : selected?.name ?? selectedLocation?.name ?? "";
+
+  function MapClickHandler() {
+    useMapEvents({
+      click(event) {
+        onSelect?.({
+          name: "Selected location",
+          latitude: Number(event.latlng.lat.toFixed(5)),
+          longitude: Number(event.latlng.lng.toFixed(5)),
+        });
+      },
+    });
+    return null;
+  }
+
+  const colorMap = {
+    critical: "#dc2626",
+    high: "#f97316",
+    moderate: "#eab308",
+    safe: "#059669",
+  } as const;
+
   return (
     <div className={`map-canvas ${compact ? "compact" : ""}`}>
-      <svg viewBox="0 0 900 560" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" aria-hidden="true">
-        <defs>
-          <pattern id={gridId} width="48" height="48" patternUnits="userSpaceOnUse">
-            <path d="M 48 0 L 0 0 0 48" fill="none" stroke="#94b5a3" strokeWidth="0.7" opacity="0.28" />
-          </pattern>
-          <linearGradient id={terrainId} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#dcebdd" />
-            <stop offset="55%" stopColor="#c9ddcc" />
-            <stop offset="100%" stopColor="#b9d2bf" />
-          </linearGradient>
-          <filter id={shadowId} x="-40%" y="-40%" width="180%" height="180%">
-            <feDropShadow dx="0" dy="3" stdDeviation="3" floodColor="#20352b" floodOpacity=".22" />
-          </filter>
-        </defs>
-        <rect width="900" height="560" fill={`url(#${terrainId})`} />
-        <rect width="900" height="560" fill={`url(#${gridId})`} />
-        <g className="contour-lines" fill="none" stroke="#6e9180" strokeWidth="1.3" opacity=".3">
-          <path d="M-30 70 C130 8 240 108 385 42 S670 12 930 66" />
-          <path d="M-20 116 C150 52 254 157 410 91 S702 60 930 112" />
-          <path d="M-40 171 C115 105 290 212 440 146 S700 103 940 176" />
-          <path d="M-20 248 C150 172 296 282 455 214 S710 183 930 243" />
-          <path d="M-40 339 C120 270 295 367 451 307 S725 262 950 334" />
-          <path d="M-30 429 C125 365 283 445 470 400 S745 349 935 424" />
-          <path d="M-30 511 C170 443 320 527 492 477 S738 449 940 510" />
-        </g>
-        <g className="risk-halos">
-          <circle cx="432" cy="196" r="118" fill="#ef4444" opacity=".13" />
-          <circle cx="432" cy="196" r="82" fill="#ef4444" opacity=".1" />
-          <circle cx="621" cy="274" r="110" fill="#f97316" opacity=".16" />
-          <circle cx="225" cy="325" r="108" fill="#facc15" opacity=".17" />
-          <circle cx="676" cy="420" r="105" fill="#22c55e" opacity=".13" />
-        </g>
-        <path d="M-30 224 C105 246 130 151 267 186 C350 208 349 310 458 340 C557 368 602 375 663 442 C717 501 809 513 935 503" fill="none" stroke="#60a5b4" strokeWidth="48" opacity=".55" />
-        <path className="river-flow" d="M-30 224 C105 246 130 151 267 186 C350 208 349 310 458 340 C557 368 602 375 663 442 C717 501 809 513 935 503" fill="none" stroke="#2499bb" strokeWidth="29" />
-        <path className="river-shine" d="M-30 224 C105 246 130 151 267 186 C350 208 349 310 458 340 C557 368 602 375 663 442 C717 501 809 513 935 503" fill="none" stroke="#7dd3e8" strokeWidth="4" strokeDasharray="18 24" />
-        <g className="roads" fill="none" strokeLinecap="round">
-          <path d="M-30 374 C130 365 160 302 265 270 S440 302 543 269 S720 179 930 75" stroke="#f8f4df" strokeWidth="18" />
-          <path d="M-30 374 C130 365 160 302 265 270 S440 302 543 269 S720 179 930 75" stroke="#b7aa91" strokeWidth="2.5" />
-          <path d="M244 600 C330 459 381 393 446 277 S559 138 605 -30" stroke="#f8f4df" strokeWidth="18" />
-          <path d="M244 600 C330 459 381 393 446 277 S559 138 605 -30" stroke="#b7aa91" strokeWidth="2.5" />
-        </g>
-        <path className="safe-route-path" d="M230 326 C293 284 341 266 382 214 S430 185 454 164" fill="none" stroke="#047857" strokeWidth="7" strokeLinecap="round" strokeDasharray="16 12" filter={`url(#${shadowId})`} />
-        <text x="66" y="78" className="map-label-text">GANGOTRI NATIONAL PARK</text>
-        <text x="394" y="362" className="river-label-text" transform="rotate(18 394 362)">BHAGIRATHI RIVER</text>
-        <text x="760" y="486" className="map-label-text">BHATWARI</text>
-      </svg>
-      {villages.map((v) => (
-        <Button
-          key={v.name}
-          variant="ghost"
-          onClick={() => onSelect?.(v.name)}
-          className={`map-marker map-village-card marker-${v.tone} ${selected === v.name ? "selected" : ""}`}
-          style={{ left: v.x, top: v.y }}
-        >
-          <span className="village-pin"><MapPin size={17} fill="currentColor" /></span>
-          <span className="village-copy"><b>{v.name}</b><small>{v.risk}</small></span>
-        </Button>
-      ))}
-      {[["42%", "54%"], ["62%", "22%"]].map(([left, top], index) => (
-        <div key={left} className="sensor-beacon" style={{ left, top }} title={`Live sensor ${index + 1}`}><Radio size={15} /></div>
-      ))}
-      {[["34%", "35%"], ["56%", "69%"], ["22%", "78%"]].map(([left, top]) => (
-        <div key={`${left}-${top}`} className="shelter-beacon" style={{ left, top }} title="Verified shelter"><ShieldCheck size={15} /></div>
-      ))}
-      <div className="map-zoom-controls" aria-label="Map zoom controls">
-        <Button variant="secondary" aria-label="Zoom in">+</Button>
-        <Button variant="secondary" aria-label="Zoom out">−</Button>
-      </div>
+      <MapContainer center={[30.6739, 78.4827]} zoom={11} scrollWheelZoom className="h-full w-full" attributionControl={false}>
+        <TileLayer
+          attribution='&copy; OpenStreetMap contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        <MapClickHandler />
+        {villages.map((v) => (
+          <CircleMarker
+            key={v.name}
+            center={[v.latitude, v.longitude]}
+            radius={selectedName === v.name ? 13 : 10}
+            pathOptions={{
+              color: colorMap[v.tone],
+              fillColor: colorMap[v.tone],
+              fillOpacity: 0.8,
+              weight: selectedName === v.name ? 3 : 2,
+            }}
+            eventHandlers={{
+              click: () => onSelect?.({ name: v.name, latitude: v.latitude, longitude: v.longitude }),
+            }}
+          >
+            <Popup>
+              <strong>{v.name}</strong><br />
+              {v.risk}
+            </Popup>
+          </CircleMarker>
+        ))}
+        {selectedPoint && (
+          <CircleMarker
+            center={[selectedPoint.latitude, selectedPoint.longitude]}
+            radius={12}
+            pathOptions={{
+              color: "#0f766e",
+              fillColor: "#14b8a6",
+              fillOpacity: 0.95,
+              weight: 3,
+            }}
+          >
+            <Popup>
+              <strong>{selectedPoint.name}</strong><br />
+              {selectedPoint.latitude.toFixed(4)}, {selectedPoint.longitude.toFixed(4)}
+            </Popup>
+          </CircleMarker>
+        )}
+      </MapContainer>
       <div className="map-live-strip">
-        <Radio size={12} className="text-teal-600" /> Live sensors • animated conditions • updated 38s ago
+        <Radio size={12} className="text-teal-600" /> Real OpenStreetMap view • selected location risk
       </div>
-      <div className="map-disclaimer">Illustrative map • not for navigation</div>
+      <div className="map-disclaimer">Real map • risk-driven overlay</div>
     </div>
   );
 }
@@ -1005,6 +892,10 @@ function Dashboard({ onNavigate }: { onNavigate: (screen: Screen) => void }) {
             </div>
             <Button variant="secondary" onClick={() => onNavigate("map")}>Full map <Navigation size={14} /></Button>
           </div>
+          <div className="mb-3 flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+            <span className="flex items-center gap-2"><MapPin size={14} className="text-red-500" /> Click a place or open the map to check current prediction.</span>
+            <Button variant="ghost" className="!p-1 !text-[11px]" onClick={() => onNavigate("map")}>See location</Button>
+          </div>
           <MapCanvas compact onSelect={() => onNavigate("map")} />
           <div className="map-legend">
             <span><i className="bg-red-500" /> Critical</span>
@@ -1081,32 +972,138 @@ function LayerControl() {
 
 function RiskMap({ onNavigate }: { onNavigate: (screen: Screen) => void }) {
   const { isAuthority } = useRole();
-  const [selected, setSelected] = useState("Dharali");
+  const [selectedVillage, setSelectedVillage] = useState<{ name: string; latitude: number; longitude: number } | null>({
+    name: "Dharali",
+    latitude: 30.6739,
+    longitude: 78.4827,
+  });
+  const [riskData, setRiskData] = useState<RiskEngineResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<Array<{ label: string; risk: string; time: string }>>([]);
+
+  useEffect(() => {
+    if (!selectedVillage) {
+      setRiskData(null);
+      return;
+    }
+
+    let isMounted = true;
+    setLoading(true);
+    setError(null);
+
+    fetchRiskEngine(selectedVillage.latitude, selectedVillage.longitude)
+      .then((payload) => {
+        if (isMounted) {
+          setRiskData(payload);
+          const nowLabel = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+          setHistory((current) => [
+            {
+              label: selectedVillage.name,
+              risk: payload.risk_category ?? "Data unavailable",
+              time: nowLabel,
+            },
+            ...current,
+          ].slice(0, 5));
+        }
+      })
+      .catch((requestError) => {
+        if (isMounted) {
+          setError(requestError instanceof Error ? requestError.message : "Data unavailable");
+          setRiskData(null);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedVillage]);
+
+  const selectedName = selectedVillage?.name ?? "";
   return (
     <div className="full-map-wrap">
-      <MapCanvas selected={selected} onSelect={setSelected} />
+      <div className="mb-3 flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+        <span className="flex items-center gap-2"><Search size={14} className="text-sky-600" /> Select any point on the map to retrieve live rainfall, soil moisture, elevation, and risk prediction.</span>
+        <span className="rounded-full bg-sky-100 px-2 py-0.5 font-semibold text-sky-700">Prediction active</span>
+      </div>
+      <MapCanvas selected={selectedName} selectedLocation={selectedVillage} onSelect={setSelectedVillage} />
       <LayerControl />
-      {selected && (
+      {selectedVillage && (
         <div className="village-popup animate-rise">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-lg font-extrabold text-slate-900">{selected}</div>
-              <div className="mt-0.5 text-xs text-slate-500">Uttarkashi • 2,648 m elevation</div>
+              <div className="text-lg font-extrabold text-slate-900">{selectedVillage.name}</div>
+              <div className="mt-0.5 text-xs text-slate-500">Lat {selectedVillage.latitude.toFixed(4)} • Lon {selectedVillage.longitude.toFixed(4)}</div>
             </div>
-            <Button variant="ghost" className="!p-1 text-slate-400" onClick={() => setSelected("")}><X size={17} /></Button>
+            <Button variant="ghost" className="!p-1 text-slate-400" onClick={() => setSelectedVillage(null)}><X size={17} /></Button>
           </div>
-          <div className="mt-4 rounded-xl bg-red-50 p-3">
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-red-500">Raw model output</div>
-            <div className="mt-1 text-lg font-extrabold text-red-700">Flash-Flood Probability: 87% — Next 3 Hours</div>
-          </div>
-          <div className="popup-grid">
-            <div><span>Landslide Susceptibility</span><b>High</b><small>terrain-based, static</small></div>
-            <div><span>Dynamic Landslide Risk</span><b>High</b><small>live • updated 1h ago</small></div>
-            <div><span>Expected Rainfall</span><b>56 mm</b></div>
-            <div><span>Soil Moisture</span><b>78%</b></div>
-            <div><span>Risk Window</span><b>3–6 hrs</b></div>
-            <div><span>Current Risk • Risk Engine</span><StatusPill tone="high">High Risk</StatusPill></div>
-          </div>
+
+          {loading && <div className="mt-4 text-sm text-slate-500">Loading live environmental data…</div>}
+          {error && <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">Data unavailable</div>}
+
+          {!loading && !error && riskData && (
+            <>
+              <div className="mt-4 rounded-xl bg-red-50 p-3">
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-red-500">Risk engine output</div>
+                <div className="mt-1 text-lg font-extrabold text-red-700">
+                  {riskData.model1?.flood_probability != null
+                    ? `Flood probability: ${(riskData.model1.flood_probability * 100).toFixed(1)}%`
+                    : "Flood probability: prototype mode"}
+                </div>
+              </div>
+              <div className="popup-grid">
+                <div><span>Observed Rainfall</span><b>{riskData.rainfall?.rain_1d?.value ?? "Data unavailable"} mm</b><small>1 day</small></div>
+                <div><span>3-Day Rainfall</span><b>{riskData.rainfall?.rain_3d?.value ?? "Data unavailable"} mm</b><small>observed</small></div>
+                <div><span>15-Day Rainfall</span><b>{riskData.rainfall?.rain_15d?.value ?? "Data unavailable"} mm</b><small>observed</small></div>
+                <div><span>Soil Moisture</span><b>{riskData.soil_moisture?.value ?? "Data unavailable"} {riskData.soil_moisture?.unit ?? "m3/m3"}</b><small>{riskData.soil_moisture?.source ?? "Unknown source"}</small></div>
+                <div><span>Elevation</span><b>{riskData.elevation?.value ?? "Data unavailable"} m</b><small>{riskData.elevation?.source ?? "Open-Meteo"}</small></div>
+                <div><span>Static Susceptibility</span><b>{riskData.static_susceptibility?.value ?? "Data unavailable"}</b><small>{riskData.static_susceptibility?.status ?? "unavailable"}</small></div>
+                <div><span>Dynamic Landslide Risk</span><b>{riskData.current_landslide_risk != null ? riskData.current_landslide_risk.toFixed(2) : "Data unavailable"}</b><small>{riskData.risk_category ?? "Data unavailable"}</small></div>
+                <div><span>Forecast 24h</span><b>{riskData.rainfall?.forecast_24h?.value ?? "Data unavailable"} mm</b><small>next 24 hours</small></div>
+              </div>
+
+              {riskData.risk_explanation && (
+                <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-slate-600">
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">Why this risk?</div>
+                  <div className="mt-2 text-sm font-semibold text-slate-800">{riskData.risk_explanation.summary}</div>
+                  <ul className="mt-2 space-y-1 text-xs leading-relaxed text-slate-600">
+                    {riskData.risk_explanation.drivers.map((driver) => (
+                      <li key={driver}>• {driver}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {history.length > 0 && (
+                <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 p-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Risk history</div>
+                  <div className="mt-2 space-y-2 text-xs text-slate-600">
+                    {history.map((entry) => (
+                      <div key={`${entry.label}-${entry.time}`} className="flex items-center justify-between gap-3 rounded-lg bg-white px-2 py-1.5 shadow-sm">
+                        <div>
+                          <div className="font-semibold text-slate-800">{entry.label}</div>
+                          <div className="text-[10px] text-slate-400">{entry.time}</div>
+                        </div>
+                        <span className="rounded-full bg-red-100 px-2 py-0.5 font-semibold text-red-700">{entry.risk}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-4 rounded-xl border border-slate-100 p-3 text-xs text-slate-600">
+                <div><b>Source:</b> {riskData.rainfall?.source ?? "Open-Meteo"}</div>
+                <div><b>Observed at:</b> {riskData.rainfall?.observed_at ?? "not available"}</div>
+                <div><b>Retrieved at:</b> {riskData.rainfall?.retrieved_at ?? "not available"}</div>
+              </div>
+            </>
+          )}
+
           <div className="mt-4 flex items-center gap-3 rounded-xl border border-slate-100 p-3">
             <Building2 size={18} className="text-teal-600" />
             <div className="min-w-0 flex-1">
@@ -1116,7 +1113,7 @@ function RiskMap({ onNavigate }: { onNavigate: (screen: Screen) => void }) {
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2"><Button variant="secondary"><Eye size={15} /> View Details</Button><Button><Route size={15} /> Find Safe Route</Button></div>
           <Button variant="ghost" className="mt-2 w-full text-teal-700"><Building2 size={15} /> View Shelters</Button>
-          {isAuthority && <Button variant="ghost" className="mt-1 w-full text-red-700" onClick={() => { sessionStorage.setItem("pravaah-alert-area", selected); onNavigate("alerts"); }}><Send size={15} /> Send Alert for this Area</Button>}
+          {isAuthority && <Button variant="ghost" className="mt-1 w-full text-red-700" onClick={() => { sessionStorage.setItem("pravaah-alert-area", selectedName); onNavigate("alerts"); }}><Send size={15} /> Send Alert for this Area</Button>}
         </div>
       )}
       <div className="map-risk-legend">

@@ -2,4 +2,6 @@ django>=4.2,<6
 joblib
 numpy
 pandas
+requests
 scikit-learn
+python-dotenv
