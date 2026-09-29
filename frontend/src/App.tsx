@@ -1137,8 +1137,7 @@ function Dashboard({ onNavigate }: { onNavigate: (screen: Screen) => void }) {
               </div>
             ))}
           </div>
-          <Button className="mt-5 w-full" onClick={() => onNavigate("shelters")}><Route size={16} /> Find safest route</Button>
-        </div>
+          </div>
       </div>
       <div className="mobile-priority card p-4">
         <div className="section-title">Rain forecast</div>
