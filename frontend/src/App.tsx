@@ -36,6 +36,7 @@ import {
   Zap,
   Loader,
   Crosshair,
+  Info,
 } from "lucide-react";
 import {
   Area,
@@ -58,7 +59,7 @@ import { RoleProvider, useRole } from "./context/RoleContext";
 import { RiskProvider, useRisk } from "./context/RiskContext";
 import { fetchRiskEngine, type RiskEngineResponse } from "./services/riskEngineService";
 
-type Screen = "landing" | "predict" | "dashboard" | "map" | "forecast" | "landslide" | "alerts";
+type Screen = "landing" | "predict" | "dashboard" | "map" | "forecast" | "landslide" | "alerts" | "shelters" | "sensors";
 type IconType = typeof Home;
 
 const heroImage =
@@ -700,6 +701,8 @@ function Topbar({ screen, onNavigate }: { screen: Screen; onNavigate: (screen: S
     map: "Live Risk Map",
     forecast: "Rain Forecast",
     landslide: "Landslide & Soil",
+    shelters: "Shelters",
+    sensors: "Sensors",
     alerts: "Alerts",
   };
   return (
@@ -1912,6 +1915,8 @@ const screenPaths: Record<Screen, string> = {
   forecast: "/forecast",
   landslide: "/landslide",
   alerts: "/alerts",
+  shelters: "/shelters",
+  sensors: "/sensors",
 };
 
 function ProductApp() {
@@ -1934,6 +1939,8 @@ function ProductApp() {
           <RouterRoute path="/forecast" element={<Forecast />} />
           <RouterRoute path="/landslide" element={<Landslide />} />
           <RouterRoute path="/alerts" element={<CommunityAlerts />} />
+          <RouterRoute path="/shelters" element={<Shelters />} />
+          <RouterRoute path="/sensors" element={<Sensors />} />
           <RouterRoute path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </AppShell>

@@ -1,6 +1,7 @@
 import json
+from functools import wraps
 
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
@@ -10,11 +11,35 @@ from .models import RiskEvaluation, Alert
 from . import risk_engine as risk_engine_module
 
 
+
+def _with_request_cors(view):
+    """Echo the caller's Origin header so browser preflights succeed."""
+    @wraps(view)
+    def wrapper(request, *args, **kwargs):
+        return _add_cors_headers(view(request, *args, **kwargs), request)
+
+    return wrapper
+
+
+def _add_cors_headers(response, request=None):
+    origin = "*"
+    if request and "HTTP_ORIGIN" in request.META:
+        origin = request.META["HTTP_ORIGIN"]
+    
+    response["Access-Control-Allow-Origin"] = origin
+    if origin != "*":
+        response["Vary"] = "Origin"
+    response["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    response["Access-Control-Allow-Headers"] = "Content-Type"
+    return response
+
+
 @csrf_exempt
 @require_http_methods(["POST", "OPTIONS"])
+@_with_request_cors
 def model1_predict(request):
     if request.method == "OPTIONS":
-        response = JsonResponse({}, status=204)
+        response = HttpResponse(status=204)
         return _add_cors_headers(response)
     try:
         payload = json.loads(request.body)
@@ -42,9 +67,10 @@ def model1_predict(request):
 
 @csrf_exempt
 @require_http_methods(["POST", "OPTIONS"])
+@_with_request_cors
 def risk_engine(request):
     if request.method == "OPTIONS":
-        response = JsonResponse({}, status=204)
+        response = HttpResponse(status=204)
         return _add_cors_headers(response)
 
     try:
@@ -155,21 +181,12 @@ def risk_engine(request):
     return _add_cors_headers(JsonResponse(body, status=200))
 
 
-def _add_cors_headers(response, request=None):
-    origin = "*"
-    if request and "HTTP_ORIGIN" in request.META:
-        origin = request.META["HTTP_ORIGIN"]
-    
-    response["Access-Control-Allow-Origin"] = origin
-    response["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-    response["Access-Control-Allow-Headers"] = "Content-Type"
-    return response
-
 @csrf_exempt
 @require_http_methods(["GET", "OPTIONS"])
+@_with_request_cors
 def risk_history(request):
     if request.method == "OPTIONS":
-        return _add_cors_headers(JsonResponse({}, status=204))
+        return _add_cors_headers(HttpResponse(status=204))
     
     lat = request.GET.get("latitude")
     lon = request.GET.get("longitude")
@@ -205,9 +222,10 @@ def risk_history(request):
 
 @csrf_exempt
 @require_http_methods(["GET", "POST", "OPTIONS"])
+@_with_request_cors
 def alerts(request):
     if request.method == "OPTIONS":
-        return _add_cors_headers(JsonResponse({}, status=204))
+        return _add_cors_headers(HttpResponse(status=204))
         
     if request.method == "GET":
         qs = Alert.objects.order_by('-created_at')[:50]
