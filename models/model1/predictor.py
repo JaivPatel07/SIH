@@ -38,4 +38,11 @@ def predict(values: Mapping[str, object]) -> float:
     if not np.isfinite(row.to_numpy(dtype=float)).all():
         raise ValueError("All model features must be finite numbers.")
     model = joblib.load(MODEL_PATH)
-    return round(float(model.predict_proba(row[FEATURES])[0, 1]), 6)
+    prob = float(model.predict_proba(row[FEATURES])[0, 1])
+    
+    # Synthetic dataset artifact fix: the training data used Gamma distributions
+    # that did not produce 0 rainfall, causing OOD erratic behavior on dry days.
+    if row["rain_24h"].iloc[0] < 15.0:
+        prob = min(prob, 0.03 + (row["rain_24h"].iloc[0] * 0.005))
+        
+    return round(prob, 6)

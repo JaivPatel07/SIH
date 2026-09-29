@@ -1,7 +1,10 @@
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+load_dotenv(PROJECT_ROOT / ".env")
 SECRET_KEY = "development-only-change-me"
 DEBUG = False
 ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
@@ -10,7 +13,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.middleware.common.CommonMiddleware",
 ]
-INSTALLED_APPS = ["django.contrib.contenttypes", "django.contrib.staticfiles"]
+INSTALLED_APPS = ["django.contrib.contenttypes", "django.contrib.staticfiles", "flood_api"]
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
