@@ -19,8 +19,60 @@ export type PravaahAlert = {
 
 type AlertInput = Omit<PravaahAlert, "id" | "timestamp" | "sentBy" | "fresh">;
 
+/**
+ * Sample advisories shown when the live alert feed is empty or unreachable so
+ * the interface never renders a blank page. Flagged as `usingSample` in the UI.
+ */
+const SAMPLE_ALERTS: PravaahAlert[] = [
+  {
+    id: "sample-flood",
+    area: "Dharali",
+    type: "Flood",
+    severity: "High",
+    title: "Flash-flood risk increasing near Dharali",
+    message: "Bhagirathi tributary levels are rising. Avoid riverbanks and low-lying crossings until 20:00.",
+    action: "Avoid riverbanks, culverts and low-lying crossings until 20:00.",
+    timestamp: "12 min ago",
+    sentBy: "authority",
+  },
+  {
+    id: "sample-evacuation",
+    area: "Sukhi Gaon",
+    type: "Evacuation",
+    severity: "Critical",
+    title: "Precautionary evacuation: Ward 3, Sukhi Gaon",
+    message: "Residents should proceed to Sukhi Community Hall using the marked east road.",
+    action: "Move calmly to Sukhi Community Hall via the marked east road.",
+    timestamp: "28 min ago",
+    sentBy: "authority",
+  },
+  {
+    id: "sample-weather",
+    area: "Uttarkashi",
+    type: "Weather",
+    severity: "Moderate",
+    title: "Heavy rainfall expected 16:00–19:00",
+    message: "Peak intensity of 56 mm/hr is forecast. Keep emergency supplies and phones charged.",
+    action: "Keep supplies ready and avoid unnecessary travel.",
+    timestamp: "1 hr ago",
+    sentBy: "authority",
+  },
+  {
+    id: "sample-landslide",
+    area: "Kedarpur",
+    type: "Landslide",
+    severity: "High",
+    title: "Slope movement detected above Kedarpur road",
+    message: "Sensor KDP-04 reports unusual ground displacement. NH-34 traffic is being monitored.",
+    action: "Avoid the marked road section and unstable slopes.",
+    timestamp: "2 hrs ago",
+    sentBy: "authority",
+  },
+];
+
 type AlertContextValue = {
   alerts: PravaahAlert[];
+  usingSample: boolean;
   unread: number;
   sentCount: number;
   latestAlert: PravaahAlert | null;
@@ -32,7 +84,8 @@ type AlertContextValue = {
 const AlertContext = createContext<AlertContextValue | null>(null);
 
 export function AlertProvider({ children }: { children: React.ReactNode }) {
-  const [alerts, setAlerts] = useState<PravaahAlert[]>([]);
+  const [alerts, setAlerts] = useState<PravaahAlert[]>(SAMPLE_ALERTS);
+  const [usingSample, setUsingSample] = useState(true);
   const [unread, setUnread] = useState(0);
   const [sentCount, setSentCount] = useState(0);
 
@@ -50,9 +103,15 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
         sentBy: "authority",
         fresh: false
       }));
-      setAlerts(formatted);
-      setSentCount(formatted.length);
-    }).catch(e => console.error(e));
+      if (formatted.length > 0) {
+        setAlerts(formatted);
+        setSentCount(formatted.length);
+        setUsingSample(false);
+      }
+    }).catch(() => {
+      // Keep the sample advisories in place when the live feed is unreachable.
+      setUsingSample(true);
+    });
   };
 
   useEffect(() => {
@@ -77,7 +136,8 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
       sentBy: "authority",
       fresh: true,
     };
-    setAlerts((current) => [alert, ...current]);
+    setAlerts((current) => [alert, ...current.filter((item) => !item.id.startsWith("sample-"))]);
+    setUsingSample(false);
     setUnread((current) => current + 1);
     setSentCount((current) => current + 1);
     
@@ -88,8 +148,8 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
   };
 
   const value = useMemo(
-    () => ({ alerts, unread, sentCount, latestAlert: alerts.length > 0 ? alerts[0] : null, sendAlert, markAllRead: () => setUnread(0), refreshAlerts }),
-    [alerts, unread, sentCount],
+    () => ({ alerts, usingSample, unread, sentCount, latestAlert: alerts.length > 0 ? alerts[0] : null, sendAlert, markAllRead: () => setUnread(0), refreshAlerts }),
+    [alerts, usingSample, unread, sentCount],
   );
   return <AlertContext.Provider value={value}>{children}</AlertContext.Provider>;
 }

@@ -34,6 +34,16 @@ react(),
       host: process.env.FIGMA_DEV_SERVER_HOST || '0.0.0.0',
       port: parseInt(process.env.PORT || '8443'),
       strictPort: true,
+      allowedHosts: true,
+      cors: true,
+      proxy: {
+        // The browser cannot reach the Django host directly (sandbox / remote
+        // preview), so API calls are proxied through the dev server.
+        '/api': {
+          target: process.env.VITE_API_TARGET || 'http://127.0.0.1:8000',
+          changeOrigin: true,
+        },
+      },
       watch: {
         ignored: [
           '**/.figma/**',

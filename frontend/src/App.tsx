@@ -134,36 +134,15 @@ function getDynamicShelters(locationName: string) {
   ];
 }
 
-const alertData = [
-  {
-    type: "Flood",
-    severity: "High",
-    time: "12 min ago",
-    title: "Flash-flood risk increasing near Dharali",
-    body: "Bhagirathi tributary levels rising. Avoid riverbanks and low-lying crossings until 20:00.",
-  },
-  {
-    type: "Evacuation",
-    severity: "Critical",
-    time: "28 min ago",
-    title: "Precautionary evacuation: Ward 3, Sukhi Gaon",
-    body: "Residents should proceed to Sukhi Community Hall using the marked east road.",
-  },
-  {
-    type: "Weather",
-    severity: "Moderate",
-    time: "1 hr ago",
-    title: "Heavy rainfall expected from 16:00–19:00",
-    body: "Peak intensity of 56 mm/hr is forecast. Keep emergency supplies and phones charged.",
-  },
-  {
-    type: "Landslide",
-    severity: "High",
-    time: "2 hrs ago",
-    title: "Slope movement detected above Kedarpur road",
-    body: "Sensor KDP-04 reports unusual ground displacement. NH-34 traffic is being monitored.",
-  },
-];
+const toneAccent: Record<string, string> = {
+  red: "#dc2626",
+  blue: "#2563eb",
+  amber: "#f59e0b",
+  purple: "#7c3aed",
+  teal: "#0d9488",
+  emerald: "#059669",
+  orange: "#f97316",
+};
 
 function Button({
   children,
@@ -185,6 +164,30 @@ function Button({
       className: `btn btn-${variant} ${className}`,
     },
     children,
+  );
+}
+
+/** Consistent page header used across every screen. */
+function PageHeader({
+  overline,
+  title,
+  subtitle,
+  actions,
+}: {
+  overline?: string;
+  title: React.ReactNode;
+  subtitle?: React.ReactNode;
+  actions?: React.ReactNode;
+}) {
+  return (
+    <div className="page-heading">
+      <div className="min-w-0">
+        {overline && <div className="overline mb-1.5">{overline}</div>}
+        <h1 className="page-title">{title}</h1>
+        {subtitle && <p className="page-subtitle">{subtitle}</p>}
+      </div>
+      {actions && <div className="flex items-center gap-2 flex-wrap">{actions}</div>}
+    </div>
   );
 }
 
@@ -434,7 +437,7 @@ function Landing({
           <button onClick={() => onNavigate("landing")} className="bg-transparent border-0 cursor-pointer text-left p-0">
             <Brand light />
           </button>
-          <div className="hidden items-center gap-7 lg:flex">
+          <div className="desktop-nav">
             {["Home", "Risk Map", "Forecast", "Shelters", "Alerts", "Why PRAVAAH"].map((item) => (
               <Button
                 key={item}
@@ -471,37 +474,47 @@ function Landing({
         </nav>
 
         {mobileMenuOpen && (
-          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="landing-mobile-dropdown">
-            <div className="space-y-3 p-4">
-              <div className="text-xs font-bold uppercase tracking-wider text-cyan-400">Navigation</div>
-              <Button variant="ghost" className="w-full justify-start text-white" onClick={() => { setMobileMenuOpen(false); onNavigate("landing"); }}>
-                <Home size={16} /> Home
-              </Button>
-              <Button variant="ghost" className="w-full justify-start text-white" onClick={() => { setMobileMenuOpen(false); onNavigate("map"); }}>
-                <Map size={16} /> Risk Map
-              </Button>
-              <Button variant="ghost" className="w-full justify-start text-white" onClick={() => { setMobileMenuOpen(false); onNavigate("forecast"); }}>
-                <CloudRain size={16} /> Rain Forecast
-              </Button>
-              <Button variant="ghost" className="w-full justify-start text-white" onClick={() => { setMobileMenuOpen(false); onNavigate("shelters"); }}>
-                <Building2 size={16} /> Safe Shelters
-              </Button>
-              <Button variant="ghost" className="w-full justify-start text-white" onClick={() => { setMobileMenuOpen(false); onNavigate("alerts"); }}>
-                <Bell size={16} /> Verified Alerts
-              </Button>
-              <Button variant="ghost" className="w-full justify-start text-white" onClick={() => {
-                setMobileMenuOpen(false);
-                const el = document.querySelector(".why-pravaah-section");
-                if (el) el.scrollIntoView({ behavior: "smooth" });
-              }}>
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="landing-mobile-dropdown"
+          >
+            <div className="space-y-2 p-2">
+              <div className="px-2 pt-1 pb-2 text-[11px] font-bold uppercase tracking-[.16em] text-cyan-400">Navigation</div>
+              {([
+                [Home, "Home", "landing"],
+                [Map, "Risk Map", "map"],
+                [CloudRain, "Rain Forecast", "forecast"],
+                [Mountain, "Landslide & Soil", "landslide"],
+                [Building2, "Safe Shelters", "shelters"],
+                [Bell, "Verified Alerts", "alerts"],
+              ] as const).map(([Icon, label, target]) => (
+                <Button
+                  key={label}
+                  variant="ghost"
+                  className="w-full !justify-start text-white !py-2.5"
+                  onClick={() => { setMobileMenuOpen(false); onNavigate(target); }}
+                >
+                  <Icon size={16} /> {label}
+                </Button>
+              ))}
+              <Button
+                variant="ghost"
+                className="w-full !justify-start text-white !py-2.5"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  const el = document.querySelector(".why-pravaah-section");
+                  if (el) el.scrollIntoView({ behavior: "smooth" });
+                }}
+              >
                 <ShieldCheck size={16} /> Why PRAVAAH
               </Button>
-              <div className="my-3 h-px bg-white/10" />
+              <div className="my-2 h-px bg-white/10" />
               <Button className="w-full" onClick={() => { setMobileMenuOpen(false); setAuthority(false); onNavigate("dashboard"); }}>
                 Continue as User <Navigation size={16} />
               </Button>
               <Button variant="secondary" className="w-full" onClick={() => { setMobileMenuOpen(false); setAuthority(true); onNavigate("authority-dashboard"); }}>
-                <ShieldCheck size={16} /> Switch to Authority Mode
+                <ShieldCheck size={16} /> Authority Mode
               </Button>
             </div>
           </motion.div>
@@ -598,7 +611,7 @@ function Landing({
   );
 }
 
-function Sidebar({ screen, onNavigate }: { screen: Screen; onNavigate: (screen: Screen) => void }) {
+function Sidebar({ screen, onNavigate, open, onClose }: { screen: Screen; onNavigate: (screen: Screen) => void; open?: boolean; onClose?: () => void }) {
   const { isAuthority } = useRole();
   const { unread } = useAlerts();
   const monitoringItems: { id: Screen; label: string; icon: IconType }[] = [
@@ -626,37 +639,42 @@ function Sidebar({ screen, onNavigate }: { screen: Screen; onNavigate: (screen: 
     );
   };
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${open ? "open" : ""}`} aria-label="Main navigation">
       <div className="sidebar-brand">
         <Brand light />
+        <Button variant="ghost" className="sidebar-close icon-btn !w-9 !h-9 text-slate-400" aria-label="Close navigation" onClick={onClose}>
+          <X size={19} />
+        </Button>
       </div>
-      <div className="sidebar-nav-label">Monitoring</div>
-      <div className="px-2 space-y-0.5">
-        {monitoringItems.map(renderLink)}
+      <div className="sidebar-nav">
+        <div className="sidebar-nav-label">Monitoring</div>
+        <div className="px-2 space-y-0.5">
+          {monitoringItems.map(renderLink)}
+        </div>
+        {authorityItems.length > 0 && (
+          <>
+            <div className="sidebar-divider" />
+            <div className="sidebar-nav-label">Authority</div>
+            <div className="px-2 space-y-0.5">
+              {authorityItems.map(renderLink)}
+            </div>
+          </>
+        )}
       </div>
-      {authorityItems.length > 0 && (
-        <>
-          <div className="sidebar-divider" />
-          <div className="sidebar-nav-label">Authority</div>
-          <div className="px-2 space-y-0.5">
-            {authorityItems.map(renderLink)}
-          </div>
-        </>
-      )}
       <div className="sidebar-status">
         <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400">
           <span className="live-dot" /> Systems operational
         </div>
-        <div className="mt-1.5 text-[10px] leading-relaxed text-slate-600">Open-Meteo • OpenStreetMap</div>
+        <div className="mt-1.5 text-[10px] leading-relaxed text-slate-500">Open-Meteo • OpenStreetMap</div>
       </div>
     </aside>
   );
 }
 
-function Topbar({ screen, onNavigate }: { screen: Screen; onNavigate: (screen: Screen) => void }) {
+function Topbar({ screen, onNavigate, onOpenMenu }: { screen: Screen; onNavigate: (screen: Screen) => void; onOpenMenu: () => void }) {
   const { role, setRole, isAuthority } = useRole();
   const { unread, markAllRead } = useAlerts();
-  const { selectedLocation, setSelectedLocation } = useRisk();
+  const { selectedLocation, setSelectedLocation, setIsLocationSet } = useRisk();
   const [geoLoading, setGeoLoading] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const names: Record<Screen, string> = {
@@ -666,7 +684,7 @@ function Topbar({ screen, onNavigate }: { screen: Screen; onNavigate: (screen: S
     "authority-dashboard": "Authority Control Center",
     map: "Live Risk Map",
     forecast: "Rain Forecast",
-    landslide: "Landslide & Soil Conditions",
+    landslide: "Landslide & Soil",
     shelters: "Shelters & Evacuation",
     alerts: "Alerts",
     sensors: "Live Sensor Monitoring",
@@ -674,21 +692,38 @@ function Topbar({ screen, onNavigate }: { screen: Screen; onNavigate: (screen: S
   };
   return (
     <header className="topbar">
-      <div className="flex-1 min-w-0">
-        <div className="topbar-page-title truncate">{names[screen]}</div>
-        <div className="topbar-location-pill hidden sm:inline-flex mt-0.5">
-          <span className="live-dot" />
-          {selectedLocation.name}
+      <Button
+        variant="ghost"
+        className="icon-btn lg:hidden !w-10 !h-10 text-slate-600"
+        aria-label="Open navigation"
+        onClick={onOpenMenu}
+      >
+        <Menu size={20} />
+      </Button>
+
+      <div className="topbar-lead">
+        <div className="topbar-heading min-w-0">
+          <div className="topbar-page-title truncate">{names[screen]}</div>
+          <button
+            className="topbar-location-pill"
+            title="Change location"
+            onClick={() => setIsLocationSet(false)}
+          >
+            <span className="live-dot" />
+            <span className="truncate">{selectedLocation.name}</span>
+            <ChevronDown size={12} className="opacity-60 shrink-0" />
+          </button>
         </div>
       </div>
-      <div className="flex items-center gap-2 md:gap-2.5">
+
+      <div className="topbar-actions">
         <div className="hidden sm:flex items-center gap-2">
-          <div className="w-44 lg:w-60">
+          <div className="topbar-search">
             <LocationSearch placeholder="Change location…" />
           </div>
           <Button
             variant="secondary"
-            className="!p-2.5 hidden md:flex"
+            className="icon-btn hidden md:inline-flex"
             title="Use current location"
             disabled={geoLoading}
             onClick={() => {
@@ -716,13 +751,15 @@ function Topbar({ screen, onNavigate }: { screen: Screen; onNavigate: (screen: S
           </Button>
         </div>
         <div className="hidden sm:block w-px h-6 bg-slate-200" />
-        <StatusPill tone={isAuthority ? "info" : "safe"}>{isAuthority ? "Authority" : "User"}</StatusPill>
-        <Button variant="secondary" className={`relative !p-2.5 ${unread ? "bell-live" : ""}`} aria-label="Notifications" onClick={() => { markAllRead(); onNavigate("alerts"); }}>
+        <span className="hidden sm:inline-flex">
+          <StatusPill tone={isAuthority ? "info" : "safe"}>{isAuthority ? "Authority" : "User"}</StatusPill>
+        </span>
+        <Button variant="secondary" className={`icon-btn relative ${unread ? "bell-live" : ""}`} aria-label="Notifications" onClick={() => { markAllRead(); onNavigate("alerts"); }}>
           <Bell size={17} />
           {unread > 0 && <span className="absolute -right-1 -top-1 grid min-w-5 place-items-center rounded-full bg-red-500 px-1 text-[10px] text-white ring-2 ring-white">{unread}</span>}
         </Button>
         <div className="relative">
-          <Button variant="ghost" className="!p-1.5 !rounded-full" aria-label="Open role menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
+          <Button variant="ghost" className="icon-btn !rounded-full" aria-label="Open role menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
             <CircleUserRound size={24} className="text-slate-500" />
           </Button>
           {menuOpen && (
@@ -751,18 +788,30 @@ function Topbar({ screen, onNavigate }: { screen: Screen; onNavigate: (screen: S
   );
 }
 
+const shortLabels: Partial<Record<Screen, string>> = {
+  dashboard: "Home",
+  "authority-dashboard": "Control",
+  predict: "Predict",
+  map: "Risk Map",
+  forecast: "Rain",
+  shelters: "Shelters",
+  alerts: "Alerts",
+};
+
 function BottomNav({ screen, onNavigate }: { screen: Screen; onNavigate: (screen: Screen) => void }) {
   const { isAuthority } = useRole();
-  const items = navItems.filter((item) => item.id !== "landslide").map((item) => item.id === "dashboard" && isAuthority ? { ...item, id: "authority-dashboard" as Screen } : item);
+  const items = navItems
+    .filter((item) => item.id !== "landslide")
+    .map((item) => (item.id === "dashboard" && isAuthority ? { ...item, id: "authority-dashboard" as Screen } : item));
   return (
-    <div className="bottom-nav">
+    <nav className="bottom-nav" aria-label="Primary">
       {items.map(({ id, label, icon: Icon }) => (
-        <Button key={id} variant="ghost" className={screen === id ? "active" : ""} onClick={() => onNavigate(id)}>
+        <Button key={id} variant="ghost" className={screen === id ? "active" : ""} onClick={() => onNavigate(id)} aria-label={label}>
           <Icon size={19} />
-          <span>{id === "dashboard" ? "Home" : id === "authority-dashboard" ? "Control" : label}</span>
+          <span>{shortLabels[id] ?? label}</span>
         </Button>
       ))}
-    </div>
+    </nav>
   );
 }
 
@@ -775,15 +824,38 @@ function AppShell({
   onNavigate: (screen: Screen) => void;
   children: React.ReactNode;
 }) {
+  const [navOpen, setNavOpen] = useState(false);
+  const location = useLocation();
+
+  useEffect(() => { setNavOpen(false); }, [location.pathname]);
+
+  useEffect(() => {
+    document.body.style.overflow = navOpen ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [navOpen]);
+
+  // Close the off-canvas drawer when the viewport grows past the tablet breakpoint.
+  useEffect(() => {
+    const onResize = () => { if (window.innerWidth > 1024) setNavOpen(false); };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  const navigate = (next: Screen) => {
+    setNavOpen(false);
+    onNavigate(next);
+  };
+
   return (
     <div className="app-shell flex flex-col min-h-screen">
-      <Sidebar screen={screen} onNavigate={onNavigate} />
+      <Sidebar screen={screen} onNavigate={navigate} open={navOpen} onClose={() => setNavOpen(false)} />
+      {navOpen && <button className="sidebar-backdrop" aria-label="Close navigation" onClick={() => setNavOpen(false)} />}
       <div className="app-main flex-1 flex flex-col min-h-screen">
-        <Topbar screen={screen} onNavigate={onNavigate} />
+        <Topbar screen={screen} onNavigate={navigate} onOpenMenu={() => setNavOpen(true)} />
         <div className="page-content flex-1">{children}</div>
-        <Footer onNavigate={onNavigate} compact />
+        <Footer onNavigate={navigate} compact />
       </div>
-      <BottomNav screen={screen} onNavigate={onNavigate} />
+      <BottomNav screen={screen} onNavigate={navigate} />
     </div>
   );
 }
@@ -916,37 +988,76 @@ function ModelStack({ compact = false }: { compact?: boolean }) {
 
 function Dashboard({ onNavigate }: { onNavigate: (screen: Screen) => void }) {
   const { latestAlert } = useAlerts();
-  const { selectedLocation, riskData, historyData, loading, error } = useRisk();
+  const { selectedLocation, riskData, historyData, loading, error, refreshRiskData } = useRisk();
   const shelters = getDynamicShelters(selectedLocation.name);
   const { rainfall } = getDynamicTrends(selectedLocation.name, riskData);
+  const engineOffline = !loading && !riskData && !!error;
+  // Deterministic sample values used only to keep the layout readable while the
+  // live engine is unreachable. Always labelled in the UI when shown.
+  const sample = {
+    risk: "Moderate",
+    rain: Math.round(rainfall.slice(0, 6).reduce((sum: number, h: any) => sum + (h.rain || 0), 0) / 2),
+    soil: "0.34",
+    flood: "42.0%",
+  };
+  const metric = (live: React.ReactNode) => {
+    if (loading) {
+      return <span className="shimmer" style={{ display: "block", width: "4.5rem", height: "1.5rem" }} />;
+    }
+    if (riskData) return live;
+    return engineOffline ? undefined : "—";
+  };
   const stats = [
-    { label: "Current Risk", value: loading ? "..." : error ? "N/A" : riskData?.risk_category || "Unknown", note: "Live risk engine result", icon: AlertTriangle, tone: "red" },
-    { label: "Expected Rainfall", value: loading ? "..." : error ? "N/A" : `${riskData?.rainfall?.forecast_24h?.value || 0} mm`, note: "Open-Meteo", icon: CloudRain, tone: "blue" },
-    { label: "Soil Moisture", value: loading ? "..." : error ? "N/A" : `${riskData?.soil_moisture?.value || 0} m³/m³`, note: "ERA5-Land", icon: Droplets, tone: "amber" },
-    { label: "Flood Prob.", value: loading ? "..." : error ? "N/A" : riskData?.model1?.flood_probability ? `${(riskData.model1.flood_probability * 100).toFixed(1)}%` : "0%", note: "⚠ Prototype Model - not validated", icon: Gauge, tone: "purple" },
+    { label: "Current Risk", value: metric(riskData?.risk_category || "Unknown") ?? (engineOffline ? sample.risk : "Unknown"), note: engineOffline ? "Sample value — engine offline" : "Live risk engine result", icon: AlertTriangle, tone: "red" },
+    { label: "Expected Rainfall", value: metric(riskData?.rainfall?.forecast_24h?.value != null ? `${riskData.rainfall.forecast_24h.value} mm` : "—") ?? (engineOffline ? `${sample.rain} mm` : "—"), note: engineOffline ? "Sample value — engine offline" : "Open-Meteo forecast", icon: CloudRain, tone: "blue" },
+    { label: "Soil Moisture", value: metric(riskData?.soil_moisture?.value != null ? `${riskData.soil_moisture.value} ${riskData.soil_moisture.unit || "m³/m³"}` : "—") ?? (engineOffline ? `${sample.soil} m³/m³` : "—"), note: engineOffline ? "Sample value — engine offline" : "ERA5-Land", icon: Droplets, tone: "amber" },
+    { label: "Flood Prob.", value: metric(riskData?.model1?.flood_probability != null ? `${(riskData.model1.flood_probability * 100).toFixed(1)}%` : "—") ?? (engineOffline ? sample.flood : "—"), note: "⚠ Prototype model — not validated", icon: Gauge, tone: "purple" },
   ];
   return (
     <div className="space-y-5">
-      <div className="welcome-row">
-        <div>
-          <div className="text-2xl font-extrabold tracking-tight text-slate-900">Good afternoon, {selectedLocation.name}</div>
-          <div className="mt-1 text-sm text-slate-500">Here is your hyper-local risk situation for the next 24 hours.</div>
-        </div>
-        <div className="weather-now">
-          <CloudRain size={25} />
-          <div>
-            <b>18°C</b>
-            <span>Heavy showers</span>
+      <PageHeader
+        overline={`Live • ${selectedLocation.name}`}
+        title={`Good afternoon, ${selectedLocation.name}`}
+        subtitle="Here is your hyper-local risk situation for the next 24 hours."
+        actions={
+          <div className="weather-now">
+            <CloudRain size={24} />
+            <div>
+              <b>18°C</b>
+              <span>Heavy showers</span>
+            </div>
           </div>
+        }
+      />
+
+      {engineOffline && (
+        <div className="offline-note" role="status">
+          <div className="grid size-9 place-items-center rounded-lg bg-amber-100 text-amber-700 shrink-0">
+            <AlertTriangle size={18} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-bold text-amber-900">Live risk engine offline — showing sample values</div>
+            <div className="mt-0.5 text-xs leading-relaxed text-amber-700">{error} Live weather, soil and model values return as soon as the API is reachable.</div>
+          </div>
+          <Button variant="secondary" className="shrink-0" onClick={() => refreshRiskData()} disabled={loading}>
+            {loading ? <Loader size={15} className="animate-spin" /> : <Activity size={15} />} Retry
+          </Button>
         </div>
-      </div>
+      )}
+
       <div className="stats-grid">
         {stats.map(({ label, value, note, icon: Icon, tone }, index) => (
-          <div className={`stat-card animate-rise delay-${Math.min(index, 2)}`} key={label}>
-            <div className={`stat-icon bg-${tone}`}><Icon size={19} /></div>
-            <div className="text-xs font-semibold text-slate-500">{label}</div>
-            <div className={`mt-2 text-2xl font-extrabold ${label === "Current Risk" ? "text-red-600" : "text-slate-900"}`}>{value}</div>
-            <div className="mt-1 text-[11px] text-slate-400">{note}</div>
+          <div
+            className={`stat-card animate-rise delay-${Math.min(index, 2)}`}
+            key={label}
+            style={{ ["--card-accent" as string]: toneAccent[tone] } as React.CSSProperties}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="text-[11px] font-bold uppercase tracking-[.1em] text-slate-500">{label}</div>
+              <div className={`stat-icon bg-${tone}`}><Icon size={17} /></div>
+            </div>
+            <div className={`mt-3 text-2xl font-extrabold tracking-tight ${label === "Current Risk" ? "text-red-600" : "text-slate-900"}`}>{value}</div>
+            <div className="mt-1 text-[11px] leading-snug text-slate-400">{note}</div>
           </div>
         ))}
       </div>
@@ -1116,18 +1227,22 @@ function RiskMap({ onNavigate }: { onNavigate: (screen: Screen) => void }) {
   return (
     <div className="full-map-wrap">
       {/* Top toolbar */}
-      <div className="mb-3 flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-2 text-xs text-slate-600 bg-white border border-slate-200 rounded-xl px-3 py-2.5 flex-1 min-w-0 shadow-sm">
-          <MapPin size={14} className="text-violet-500 shrink-0" />
-          <span className="font-medium">{pendingPin ? `📍 Pin dropped at ${pendingPin.latitude.toFixed(4)}, ${pendingPin.longitude.toFixed(4)} — click Find Risk` : 'Click the map to drop a pin, then press Find Risk'}</span>
+      <div className="map-toolbar mb-3">
+        <div className="map-hint">
+          <MapPin size={15} className="text-violet-500 shrink-0" />
+          <span>
+            {pendingPin
+              ? `Pin dropped at ${pendingPin.latitude.toFixed(4)}, ${pendingPin.longitude.toFixed(4)} — press Find Risk`
+              : "Tap the map to drop a pin, then press Find Risk"}
+          </span>
         </div>
-        <LocationSearch placeholder="Search a place…" className="flex-1" onSelect={(v) => doFetch(v)} />
+        <LocationSearch placeholder="Search a place…" className="!max-w-none sm:!max-w-sm" onSelect={(v) => doFetch(v)} />
         {pendingPin && (
           <button
             onClick={() => doFetch({ name: `${pendingPin.latitude.toFixed(3)}, ${pendingPin.longitude.toFixed(3)}`, ...pendingPin })}
-            className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold rounded-xl px-4 py-2.5 shadow-md transition-all active:scale-95"
+            className="btn bg-violet-600 hover:bg-violet-700 text-white !px-4 shadow-md w-full sm:w-auto"
           >
-            <MapPin size={15} /> Find Risk
+            <MapPin size={15} /> Find risk
           </button>
         )}
       </div>
@@ -1143,12 +1258,12 @@ function RiskMap({ onNavigate }: { onNavigate: (screen: Screen) => void }) {
             onPendingSelect={setPendingPin}
           />
           <div className="map-risk-legend mt-3">
-            <b>Risk zones</b>
+            <b className="text-slate-800">Risk zones</b>
             <span><i className="bg-red-500" /> Critical</span>
             <span><i className="bg-orange-500" /> High</span>
             <span><i className="bg-amber-400" /> Moderate</span>
             <span><i className="bg-emerald-500" /> Safe</span>
-            <span><i style={{background:'#8b5cf6', display:'inline-block', width:'.55rem', height:'.55rem', borderRadius:'50%'}} /> Pending pin</span>
+            <span><i className="bg-violet-500" /> Pending pin</span>
           </div>
         </div>
 
@@ -1319,12 +1434,16 @@ function Forecast() {
   const [tab, setTab] = useState("24h");
   return (
     <div className="space-y-5">
-      <div className="page-heading">
-        <div><div className="text-2xl font-extrabold text-slate-900">Rain outlook</div><div className="mt-1 text-sm text-slate-500">{selectedLocation.name} • Live Open-Meteo Data</div></div>
-        <div className="tabs">
-          {["24h", "3d", "7d"].map((t) => <Button key={t} variant="ghost" className={tab === t ? "active" : ""} onClick={() => setTab(t)}>{t}</Button>)}
-        </div>
-      </div>
+      <PageHeader
+        overline="Rainfall intelligence"
+        title="Rain outlook"
+        subtitle={`${selectedLocation.name} • Live Open-Meteo data`}
+        actions={
+          <div className="tabs">
+            {["24h", "3d", "7d"].map((t) => <Button key={t} variant="ghost" className={tab === t ? "active" : ""} onClick={() => setTab(t)}>{t}</Button>)}
+          </div>
+        }
+      />
       <div className="summary-grid">
         <div className="summary-chip"><CloudRain size={20} /><span>24h Forecast<b>{riskData?.rainfall?.forecast_24h?.value || 0} mm</b></span></div>
         <div className="summary-chip"><Gauge size={20} /><span>3-Day Forecast<b className="text-blue-600">{riskData?.rainfall?.forecast_3d?.value || 0} mm</b></span></div>
@@ -1378,9 +1497,29 @@ function AuthorityDashboard({ onNavigate }: { onNavigate: (screen: Screen) => vo
   ] as const;
   return (
     <div className="space-y-5">
-      <div><div className="text-2xl font-extrabold text-slate-900">Authority Control Center</div><div className="mt-1 text-sm text-slate-500">Regional operational picture • {selectedLocation.name}</div></div>
+      <PageHeader
+        overline="Authority mode"
+        title="Authority Control Center"
+        subtitle={`Regional operational picture • ${selectedLocation.name}`}
+      />
       <div className="stats-grid">
-        {cards.map(([label, value, Icon, tone], i) => <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * .07 }} className="stat-card" key={label}><div className={`stat-icon bg-${tone}`}><Icon size={19} /></div><div className="text-xs font-semibold text-slate-500">{label}</div><div className="mt-2 text-2xl font-extrabold text-slate-900">{value}</div><div className="mt-1 text-[11px] text-slate-400">Live operational summary</div></motion.div>)}
+        {cards.map(([label, value, Icon, tone], i) => (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * .07 }}
+            className="stat-card"
+            key={label}
+            style={{ ["--card-accent" as string]: toneAccent[tone] } as React.CSSProperties}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="text-[11px] font-bold uppercase tracking-[.1em] text-slate-500">{label}</div>
+              <div className={`stat-icon bg-${tone}`}><Icon size={17} /></div>
+            </div>
+            <div className="mt-3 text-2xl font-extrabold tracking-tight text-slate-900">{value}</div>
+            <div className="mt-1 text-[11px] text-slate-400">Live operational summary</div>
+          </motion.div>
+        ))}
       </div>
       <div className="dashboard-grid">
         <div className="card overflow-hidden"><div className="card-header"><div><div className="section-title">District risk & sensor map</div><div className="section-subtitle">Sensor overlay active • 50 reporting stations</div></div><StatusPill tone="safe"><Radio size={11} /> Sensors live</StatusPill></div><MapCanvas compact /></div>
@@ -1419,7 +1558,11 @@ function Landslide() {
 
   return (
     <div className="space-y-5">
-      <div><div className="text-2xl font-extrabold text-slate-900">Landslide & Soil Conditions</div><div className="mt-1 max-w-3xl text-sm leading-relaxed text-slate-500">Understand both the underlying terrain vulnerability and current conditions that may contribute to landslide risk.</div></div>
+      <PageHeader
+        overline={`Terrain • ${selectedLocation.name}`}
+        title="Landslide & soil conditions"
+        subtitle="Understand both the underlying terrain vulnerability and the current conditions that may contribute to landslide risk."
+      />
       <section className="card overflow-hidden">
         <div className="card-header"><div><div className="section-title">A. Landslide Susceptibility</div><div className="section-subtitle">How naturally prone this area is to landslides — not a prediction that one will happen now.</div></div><StatusPill tone="moderate">Terrain-based • static</StatusPill></div>
         <div className="landslide-grid">
@@ -1466,8 +1609,12 @@ function Sensors() {
 
   return (
     <div className="space-y-5">
-      <div><div className="text-2xl font-extrabold text-slate-900">Live Sensor Monitoring</div><div className="mt-1 text-sm text-slate-500">Authority-only telemetry • {selectedLocation.name} Region</div></div>
-      <div className="summary-grid">{groups.map(([name, status, Icon, tone]) => <div className="summary-chip" key={name}><div className={`stat-icon static bg-${tone}`}><Icon size={19} /></div><span>{name}<b>{status}</b></span></div>)}</div>
+      <PageHeader
+        overline="Authority mode"
+        title="Live sensor monitoring"
+        subtitle={`Telemetry from the field network • ${selectedLocation.name} region`}
+      />
+      <div className="summary-grid">{groups.map(([name, status, Icon, tone]) => <div className="summary-chip" key={name}><div className={`stat-icon static bg-${tone}`}><Icon size={18} /></div><span>{name}<b>{status}</b></span></div>)}</div>
       <div className="sensor-layout">
         <div className="card p-4">
           <div className="section-title">Field sensors</div>
@@ -1492,7 +1639,11 @@ function Analytics() {
 
   return (
     <div className="space-y-5">
-      <div><div className="text-2xl font-extrabold text-slate-900">Risk Analytics</div><div className="mt-1 text-sm text-slate-500">Authority decision support • {selectedLocation.name} Region</div></div>
+      <PageHeader
+        overline="Authority mode"
+        title="Risk analytics"
+        subtitle={`Decision support for ${selectedLocation.name} • model trends and live environmental inputs`}
+      />
       <div className="analytics-grid">
         <AnalyticsCard title="Flash-Flood Prediction Trend" subtitle="Model 1 • raw probability"><LineChart data={trend}><CartesianGrid vertical={false} stroke="#e2e8f0" /><XAxis dataKey="time" hide /><YAxis hide /><Line dataKey="flood" stroke="#2288d1" strokeWidth={3} dot={false} /></LineChart></AnalyticsCard>
         <AnalyticsCard title="Landslide Susceptibility Distribution" subtitle="Stage 1 • static across areas"><BarChart data={[{ n: "Low", v: 9 }, { n: "Moderate", v: 7 }, { n: "High", v: 5 }, { n: "Very High", v: 3 }]}><XAxis dataKey="n" axisLine={false} tickLine={false} tick={{ fontSize: 9 }} /><YAxis hide /><Bar dataKey="v" fill="#f59e0b" radius={[6,6,0,0]} /></BarChart></AnalyticsCard>
@@ -1516,7 +1667,11 @@ function Shelters() {
   return (
     <div className="shelters-layout">
       <div className="space-y-4">
-        <div><div className="text-2xl font-extrabold text-slate-900">Safe places near you</div><div className="mt-1 text-sm text-slate-500">Verified shelters near {selectedLocation.name}</div></div>
+        <PageHeader
+          overline="Evacuation"
+          title="Safe places near you"
+          subtitle={`Verified shelters near ${selectedLocation.name} with live capacity`}
+        />
         {shelters.map((s, i) => (
           <div
             key={s.name}
@@ -1551,7 +1706,7 @@ function Shelters() {
           <div><div className="section-title">Evacuation route</div><div className="section-subtitle">Safest available • avoids river crossing</div></div>
           <Button><Navigation size={15} /> Start route</Button>
         </div>
-        <div className="relative h-[calc(100vh-14rem)] min-h-[460px]">
+        <div className="relative h-[calc(100svh-16rem)] min-h-[22rem]">
           <MapCanvas />
           <div className="route-card">
             <div className="flex items-center gap-3"><div className="grid size-10 place-items-center rounded-xl bg-teal-50 text-teal-700"><Route size={20} /></div><div><b className="text-slate-900">1.2 km • 8 min</b><div className="text-xs text-slate-500">Via Upper Dharali Road</div></div></div>
@@ -1565,7 +1720,7 @@ function Shelters() {
 
 function Alerts() {
   const { isAuthority } = useRole();
-  const { alerts, sendAlert, markAllRead } = useAlerts();
+  const { alerts, usingSample, sendAlert, markAllRead } = useAlerts();
   const [filter, setFilter] = useState("All");
   const [formOpen, setFormOpen] = useState(false);
   const [area, setArea] = useState("Dharali");
@@ -1606,15 +1761,35 @@ function Alerts() {
   return (
     <div className="space-y-5">
       <div className="sr-only" aria-live="polite">{confirmation}</div>
-      <div className="page-heading">
-        <div><div className="text-2xl font-extrabold text-slate-900">Alerts & advisories</div><div className="mt-1 text-sm text-slate-500">Verified warnings for your region</div></div>
-        {isAuthority && <Button variant="danger" onClick={() => setFormOpen(true)}><Send size={16} /> + Send Alert</Button>}
-      </div>
+      <PageHeader
+        overline="Advisories"
+        title="Alerts & advisories"
+        subtitle="Verified warnings and official guidance for your region"
+        actions={isAuthority && <Button variant="danger" onClick={() => setFormOpen(true)}><Send size={16} /> Send alert</Button>}
+      />
       {confirmation && <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="confirmation"><Check size={18} /> {confirmation}</motion.div>}
       <div className="filter-row">
         {["All", "Flood", "Landslide", "Weather", "Evacuation"].map((item) => <Button key={item} variant="secondary" className={filter === item ? "active" : ""} onClick={() => setFilter(item)}>{item}</Button>)}
-        <SelectField aria-label="Filter region" className="ml-auto !w-auto"><option>All regions</option><option>Dharali</option><option>Sukhi Gaon</option><option>Kedarpur</option></SelectField>
+        <SelectField aria-label="Filter region" className="sm:ml-auto sm:!w-auto"><option>All regions</option><option>Dharali</option><option>Sukhi Gaon</option><option>Kedarpur</option></SelectField>
       </div>
+      {usingSample && (
+        <div className="offline-note" role="status">
+          <div className="grid size-9 place-items-center rounded-lg bg-amber-100 text-amber-700 shrink-0">
+            <Bell size={17} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-bold text-amber-900">Showing sample advisories</div>
+            <div className="mt-0.5 text-xs leading-relaxed text-amber-700">The live alert feed has no published alerts right now, so example guidance is displayed instead.</div>
+          </div>
+        </div>
+      )}
+      {shown.length === 0 ? (
+        <div className="card empty-state">
+          <ShieldCheck size={30} />
+          <div className="text-sm font-bold text-slate-600">No {filter === "All" ? "" : filter.toLowerCase() + " "}alerts right now</div>
+          <div className="text-xs text-slate-400 max-w-xs">Nothing matches this filter. You will see verified advisories here the moment they are published.</div>
+        </div>
+      ) : (
       <div className="space-y-3">
         {shown.map((alert) => {
           const tone = alert.severity === "Critical" ? "critical" : alert.severity === "High" ? "high" : "moderate";
@@ -1632,6 +1807,7 @@ function Alerts() {
           );
         })}
       </div>
+      )}
       {formOpen && (
         <div className="modal-backdrop" onMouseDown={() => setFormOpen(false)}>
           <div className="modal animate-rise" onMouseDown={(e) => e.stopPropagation()}>

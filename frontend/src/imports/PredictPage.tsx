@@ -58,7 +58,7 @@ function GaugeCard({ label, value, max = 100, color, unit = "%", note }: {
           {note && <span className="text-[10px] text-slate-400 mt-0.5 font-medium">{note}</span>}
         </div>
       </div>
-      <p className="mt-2 text-xs font-700 text-slate-600 text-center font-semibold">{label}</p>
+      <p className="mt-2 text-xs text-slate-600 text-center font-semibold">{label}</p>
     </div>
   );
 }
@@ -191,7 +191,7 @@ export function PredictPage() {
             </button>
             <button
               onClick={() => setSimModalOpen(true)}
-              className="predict-refresh-btn !bg-violet-600 hover:!bg-violet-700 text-white !border-violet-600 ml-2"
+              className="predict-refresh-btn !bg-violet-600 hover:!bg-violet-700 text-white !border-violet-600 sm:ml-2"
               title="Simulate Scenario"
             >
               <Zap size={16} />
@@ -229,7 +229,7 @@ export function PredictPage() {
             <AlertTriangle size={18} className="shrink-0 mt-0.5" />
             <div>
               <b className="block text-sm font-semibold">Backend unavailable</b>
-              <span className="text-xs mt-0.5 block opacity-80">{error} — Make sure the Django server is running at http://127.0.0.1:8000</span>
+              <span className="text-xs mt-0.5 block opacity-80">{error} Check that the Django API is running (the dev server proxies <code>/api</code> to it) and try again.</span>
             </div>
           </motion.div>
         )}
