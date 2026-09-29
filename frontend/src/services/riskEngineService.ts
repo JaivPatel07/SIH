@@ -50,17 +50,56 @@ export const operationalRisk = {
   explanation: "Operational classification from flood probability, dynamic landslide risk, and live conditions.",
 };
 
+/**
+ * API base URL.
+ *
+ * Defaults to a same-origin relative path so calls are proxied by the dev
+ * server (see `server.proxy` in vite.config.ts) or by whatever reverse proxy
+ * serves the built app. Override with VITE_API_BASE for a standalone backend.
+ */
+const API_BASE = (import.meta.env?.VITE_API_BASE as string | undefined) ?? "";
+
+export class RiskEngineError extends Error {
+  detail: string;
+  constructor(message: string, detail = "") {
+    super(message);
+    this.name = "RiskEngineError";
+    this.detail = detail;
+  }
+}
+
+async function readError(response: Response): Promise<{ code: number; raw: string }> {
+  const raw = await response.text().catch(() => "");
+  return { code: response.status, raw: raw.slice(0, 600) };
+}
+
+function explain(raw: string, code: number): string {
+  if (code === 502 || code === 504 || /unavailable|timeout/i.test(raw)) {
+    return "The weather provider is not responding right now.";
+  }
+  if (code === 400) return "That location could not be evaluated.";
+  if (/^<!?doctype|^<html/i.test(raw.trim())) return "The data service returned an unexpected response.";
+  return "Live environmental data is unavailable for this location.";
+}
+
 export async function fetchRiskEngine(latitude: number, longitude: number): Promise<RiskEngineResponse> {
-  const API_BASE = `http://${window.location.hostname}:8000`;
-  const response = await fetch(`${API_BASE}/api/risk-engine/`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ latitude, longitude }),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}/api/risk-engine/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ latitude, longitude }),
+    });
+  } catch (err) {
+    throw new RiskEngineError(
+      "Live data engine unreachable.",
+      err instanceof Error ? err.message : String(err),
+    );
+  }
 
   if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || "Unable to fetch risk data.");
+    const { code, raw } = await readError(response);
+    throw new RiskEngineError(explain(raw, code), raw);
   }
 
   return response.json();
@@ -78,7 +117,6 @@ export type RiskHistoryEntry = {
 };
 
 export async function fetchRiskHistory(latitude: number, longitude: number): Promise<RiskHistoryEntry[]> {
-  const API_BASE = `http://${window.location.hostname}:8000`;
   const response = await fetch(`${API_BASE}/api/risk-history/?latitude=${latitude}&longitude=${longitude}`);
   if (!response.ok) {
     throw new Error("Unable to fetch risk history.");
@@ -100,7 +138,6 @@ export type AlertRecord = {
 };
 
 export async function fetchAlerts(): Promise<AlertRecord[]> {
-  const API_BASE = `http://${window.location.hostname}:8000`;
   const response = await fetch(`${API_BASE}/api/alerts/`);
   if (!response.ok) {
     throw new Error("Unable to fetch alerts.");
@@ -109,7 +146,7 @@ export async function fetchAlerts(): Promise<AlertRecord[]> {
 }
 
 export async function createAlert(alert: AlertRecord): Promise<{ success: boolean; id: number }> {
-  const response = await fetch("http://127.0.0.1:8000/api/alerts/", {
+  const response = await fetch(`${API_BASE}/api/alerts/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(alert),

@@ -10,6 +10,7 @@ import {
   RadialBarChart, RadialBar, PolarAngleAxis
 } from "recharts";
 import { useRisk } from "../context/RiskContext";
+import { useAlerts } from "../context/AlertContext";
 import { LocationSearch } from "./LocationSearch";
 import type { RiskEngineResponse, RiskHistoryEntry } from "../services/riskEngineService";
 
@@ -58,7 +59,7 @@ function GaugeCard({ label, value, max = 100, color, unit = "%", note }: {
           {note && <span className="text-[10px] text-slate-400 mt-0.5 font-medium">{note}</span>}
         </div>
       </div>
-      <p className="mt-2 text-xs font-700 text-slate-600 text-center font-semibold">{label}</p>
+      <p className="mt-2 text-xs text-slate-600 text-center font-semibold">{label}</p>
     </div>
   );
 }
@@ -144,6 +145,7 @@ function HistoryChart({ data }: { data: RiskHistoryEntry[] }) {
 /* ─── Main Predict Page ─────────────────────────────────────────── */
 export function PredictPage() {
   const { selectedLocation, setSelectedLocation, riskData, historyData, loading, error, refreshRiskData } = useRisk();
+  const { publishAutomaticAlert } = useAlerts();
   const [refreshing, setRefreshing] = useState(false);
   const [simModalOpen, setSimModalOpen] = useState(false);
 
@@ -191,7 +193,7 @@ export function PredictPage() {
             </button>
             <button
               onClick={() => setSimModalOpen(true)}
-              className="predict-refresh-btn !bg-violet-600 hover:!bg-violet-700 text-white !border-violet-600 ml-2"
+              className="predict-refresh-btn !bg-violet-600 hover:!bg-violet-700 text-white !border-violet-600 sm:ml-2"
               title="Simulate Scenario"
             >
               <Zap size={16} />
@@ -229,7 +231,7 @@ export function PredictPage() {
             <AlertTriangle size={18} className="shrink-0 mt-0.5" />
             <div>
               <b className="block text-sm font-semibold">Backend unavailable</b>
-              <span className="text-xs mt-0.5 block opacity-80">{error} — Make sure the Django server is running at http://127.0.0.1:8000</span>
+              <span className="text-xs mt-0.5 block opacity-80">{error} Check that the Django API is running (the dev server proxies <code>/api</code> to it) and try again.</span>
             </div>
           </motion.div>
         )}
@@ -543,19 +545,36 @@ export function PredictPage() {
           isOpen={simModalOpen} 
           onClose={() => setSimModalOpen(false)} 
           baseRisk={riskData} 
+          onSendTestAlert={async (score) => {
+            const severity = score >= 0.8 ? "Critical" : "High";
+            await publishAutomaticAlert(`test-landslide:${selectedLocation.name}:${severity}`, {
+              area: selectedLocation.name,
+              type: "Landslide",
+              severity,
+              title: `Test alert: ${severity} landslide risk for ${selectedLocation.name}`,
+              message: `This is a simulation. The test scenario calculated a ${Math.round(score * 100)}% landslide risk after extreme rainfall.`,
+              action: "Test only — no evacuation action is required. In a real emergency, follow official instructions.",
+            });
+          }}
         />
       )}
     </div>
   );
 }
 
-function SimulationModal({ isOpen, onClose, baseRisk }: { isOpen: boolean, onClose: () => void, baseRisk: any }) {
+function SimulationModal({ isOpen, onClose, baseRisk, onSendTestAlert }: { isOpen: boolean, onClose: () => void, baseRisk: any, onSendTestAlert: (score: number) => Promise<void> }) {
   const [rain, setRain] = useState(150);
+  const [testSent, setTestSent] = useState(false);
 
   if (!isOpen) return null;
 
   const simRisk = Math.min(((baseRisk?.static_susceptibility?.value || 0.2) * 0.3) + (rain / 200), 0.99);
-  const isDanger = simRisk > 0.5;
+  const isDanger = simRisk >= 0.6;
+
+  const sendTestAlert = async () => {
+    await onSendTestAlert(simRisk);
+    setTestSent(true);
+  };
 
   return (
     <div className="modal-backdrop" onClick={onClose} style={{ zIndex: 9999 }}>
@@ -589,9 +608,14 @@ function SimulationModal({ isOpen, onClose, baseRisk }: { isOpen: boolean, onClo
                {isDanger ? " This indicates likely flooding or landslides." : " The terrain could likely absorb this."}
             </div>
           </div>
+
+          <div className="rounded-xl border border-violet-200 bg-violet-50 p-3 text-xs text-violet-900">
+            <b>Alert-area test:</b> alerts are issued automatically at 60% risk and escalate to Critical at 80%. {isDanger ? "This scenario is inside the alert area." : "Increase rainfall to enter the alert area."}
+          </div>
         </div>
-        
-        <button onClick={onClose} className="mt-6 w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-sm">Close Simulator</button>
+
+        {isDanger && <button onClick={sendTestAlert} disabled={testSent} className="mt-4 w-full py-3 bg-red-600 hover:bg-red-700 disabled:bg-emerald-600 text-white rounded-xl font-bold text-sm">{testSent ? "Test alert displayed in Alerts" : "Send test alert to Alerts"}</button>}
+        <button onClick={onClose} className="mt-3 w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-sm">Close Simulator</button>
       </div>
     </div>
   )
