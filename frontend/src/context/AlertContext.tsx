@@ -29,44 +29,44 @@ const SAMPLE_ALERTS: PravaahAlert[] = [
     area: "Dharali",
     type: "Flood",
     severity: "High",
-    title: "Flash-flood risk increasing near Dharali",
-    message: "Bhagirathi tributary levels are rising. Avoid riverbanks and low-lying crossings until 20:00.",
-    action: "Avoid riverbanks, culverts and low-lying crossings until 20:00.",
-    timestamp: "12 min ago",
-    sentBy: "authority",
+    title: "Example: flood-risk advisory",
+    message: "Example advisory content for demonstrating how flood guidance is displayed.",
+    action: "In an emergency, follow local authority instructions.",
+    timestamp: "Example",
+    sentBy: "system",
   },
   {
     id: "sample-evacuation",
     area: "Sukhi Gaon",
     type: "Evacuation",
     severity: "Critical",
-    title: "Precautionary evacuation: Ward 3, Sukhi Gaon",
-    message: "Residents should proceed to Sukhi Community Hall using the marked east road.",
-    action: "Move calmly to Sukhi Community Hall via the marked east road.",
-    timestamp: "28 min ago",
-    sentBy: "authority",
+    title: "Example: evacuation advisory",
+    message: "Example advisory content for demonstrating evacuation guidance.",
+    action: "Use only routes confirmed by local authorities.",
+    timestamp: "Example",
+    sentBy: "system",
   },
   {
     id: "sample-weather",
     area: "Uttarkashi",
     type: "Weather",
     severity: "Moderate",
-    title: "Heavy rainfall expected 16:00–19:00",
-    message: "Peak intensity of 56 mm/hr is forecast. Keep emergency supplies and phones charged.",
-    action: "Keep supplies ready and avoid unnecessary travel.",
-    timestamp: "1 hr ago",
-    sentBy: "authority",
+    title: "Example: weather advisory",
+    message: "Example advisory content for demonstrating a weather notification.",
+    action: "Check official weather and disaster-management channels.",
+    timestamp: "Example",
+    sentBy: "system",
   },
   {
     id: "sample-landslide",
     area: "Kedarpur",
     type: "Landslide",
     severity: "High",
-    title: "Slope movement detected above Kedarpur road",
-    message: "Sensor KDP-04 reports unusual ground displacement. NH-34 traffic is being monitored.",
-    action: "Avoid the marked road section and unstable slopes.",
-    timestamp: "2 hrs ago",
-    sentBy: "authority",
+    title: "Example: landslide advisory",
+    message: "Example advisory content for demonstrating landslide guidance.",
+    action: "Avoid unstable slopes and follow official instructions.",
+    timestamp: "Example",
+    sentBy: "system",
   },
 ];
 
@@ -77,7 +77,9 @@ type AlertContextValue = {
   sentCount: number;
   latestAlert: PravaahAlert | null;
   sendAlert: (alert: AlertInput) => Promise<PravaahAlert>;
+  publishDemoAlert: (alert: AlertInput) => void;
   publishAutomaticAlert: (key: string, alert: AlertInput) => Promise<void>;
+  dismissAlert: (id: string) => void;
   markAllRead: () => void;
   refreshAlerts: () => void;
 };
@@ -105,7 +107,12 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
         fresh: false
       }));
       if (formatted.length > 0) {
-        setAlerts(formatted);
+        // Demo alerts exist only in this browser, so preserve them while the
+        // live feed refreshes in the background.
+        setAlerts((current) => [
+          ...current.filter((alert) => alert.id.startsWith("demo-")),
+          ...formatted,
+        ]);
         setSentCount(formatted.length);
         setUsingSample(false);
       }
@@ -151,6 +158,30 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
     return alert;
   }, []);
 
+  // Demo notifications intentionally remain in the current browser session.
+  // They let users experience the alert flow without publishing a false alert
+  // to the live backend feed.
+  const publishDemoAlert = useCallback((input: AlertInput) => {
+    const alert: PravaahAlert = {
+      ...input,
+      id: `demo-${Date.now()}`,
+      timestamp: "Just now",
+      sentBy: "system",
+      fresh: true,
+    };
+    setAlerts((current) => [alert, ...current.filter((item) => !item.id.startsWith("sample-"))]);
+    setUsingSample(false);
+    setUnread((current) => current + 1);
+    setSentCount((current) => current + 1);
+    window.setTimeout(() => {
+      setAlerts((current) => current.map((item) => (item.id === alert.id ? { ...item, fresh: false } : item)));
+    }, 2200);
+  }, []);
+
+  const dismissAlert = useCallback((id: string) => {
+    setAlerts((current) => current.filter((alert) => alert.id !== id));
+  }, []);
+
   const publishAutomaticAlert = useCallback(async (key: string, input: AlertInput) => {
     const storageKey = `pravaah-auto-alert:${key}`;
     if (sessionStorage.getItem(storageKey)) return;
@@ -181,8 +212,8 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ alerts, usingSample, unread, sentCount, latestAlert: alerts.length > 0 ? alerts[0] : null, sendAlert, publishAutomaticAlert, markAllRead: () => setUnread(0), refreshAlerts }),
-    [alerts, usingSample, unread, sentCount, sendAlert, publishAutomaticAlert],
+    () => ({ alerts, usingSample, unread, sentCount, latestAlert: alerts.length > 0 ? alerts[0] : null, sendAlert, publishDemoAlert, publishAutomaticAlert, dismissAlert, markAllRead: () => setUnread(0), refreshAlerts }),
+    [alerts, usingSample, unread, sentCount, sendAlert, publishDemoAlert, publishAutomaticAlert, dismissAlert],
   );
   return <AlertContext.Provider value={value}>{children}</AlertContext.Provider>;
 }

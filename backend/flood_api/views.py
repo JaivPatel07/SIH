@@ -15,29 +15,29 @@ from . import risk_engine as risk_engine_module
 def model1_predict(request):
     if request.method == "OPTIONS":
         response = JsonResponse({}, status=204)
-        return _add_cors_headers(response)
+        return _add_cors_headers(response, request)
     try:
         payload = json.loads(request.body)
     except (TypeError, ValueError):
         return _add_cors_headers(
-            JsonResponse({"error": "Request body must be valid JSON."}, status=400)
+            JsonResponse({"error": "Request body must be valid JSON."}, status=400), request
         )
     if not isinstance(payload, dict):
         return _add_cors_headers(
-            JsonResponse({"error": "Request body must be a JSON object."}, status=400)
+            JsonResponse({"error": "Request body must be a JSON object."}, status=400), request
         )
     try:
         probability = predict(payload)
     except ValueError as exc:
-        return _add_cors_headers(JsonResponse({"error": str(exc)}, status=400))
+        return _add_cors_headers(JsonResponse({"error": str(exc)}, status=400), request)
     except RuntimeError as exc:
-        return _add_cors_headers(JsonResponse({"error": str(exc)}, status=503))
+        return _add_cors_headers(JsonResponse({"error": str(exc)}, status=503), request)
     return _add_cors_headers(JsonResponse(
         {
             "flood_probability": probability,
             "prediction_horizon_hours": HORIZON_HOURS,
         }
-    ))
+    ), request)
 
 
 @csrf_exempt
@@ -45,28 +45,28 @@ def model1_predict(request):
 def risk_engine(request):
     if request.method == "OPTIONS":
         response = JsonResponse({}, status=204)
-        return _add_cors_headers(response)
+        return _add_cors_headers(response, request)
 
     try:
         payload = json.loads(request.body)
     except (TypeError, ValueError):
         return _add_cors_headers(
-            JsonResponse({"error": "Request body must be valid JSON."}, status=400)
+            JsonResponse({"error": "Request body must be valid JSON."}, status=400), request
         )
     if not isinstance(payload, dict):
         return _add_cors_headers(
-            JsonResponse({"error": "Request body must be a JSON object."}, status=400)
+            JsonResponse({"error": "Request body must be a JSON object."}, status=400), request
         )
 
     try:
         latitude, longitude = risk_engine_module._validate_coordinates(payload.get("latitude"), payload.get("longitude"))
     except ValueError as exc:
-        return _add_cors_headers(JsonResponse({"error": str(exc)}, status=400))
+        return _add_cors_headers(JsonResponse({"error": str(exc)}, status=400), request)
 
     try:
         rainfall = risk_engine_module.fetch_rainfall(latitude, longitude)
     except Exception as exc:
-        return _add_cors_headers(JsonResponse({"error": f"Open-Meteo rainfall data unavailable: {exc}"}, status=502))
+        return _add_cors_headers(JsonResponse({"error": f"Open-Meteo rainfall data unavailable: {exc}"}, status=502), request)
 
     try:
         soil_moisture = risk_engine_module.fetch_soil_moisture(latitude, longitude)
@@ -152,7 +152,7 @@ def risk_engine(request):
             "Model 1 remains prototype/synthetic and may not be operationally validated.",
         ],
     }
-    return _add_cors_headers(JsonResponse(body, status=200))
+    return _add_cors_headers(JsonResponse(body, status=200), request)
 
 
 def _add_cors_headers(response, request=None):
@@ -169,18 +169,18 @@ def _add_cors_headers(response, request=None):
 @require_http_methods(["GET", "OPTIONS"])
 def risk_history(request):
     if request.method == "OPTIONS":
-        return _add_cors_headers(JsonResponse({}, status=204))
+        return _add_cors_headers(JsonResponse({}, status=204), request)
     
     lat = request.GET.get("latitude")
     lon = request.GET.get("longitude")
     if not lat or not lon:
-        return _add_cors_headers(JsonResponse({"error": "Latitude and longitude required."}, status=400))
+        return _add_cors_headers(JsonResponse({"error": "Latitude and longitude required."}, status=400), request)
     
     try:
         lat = float(lat)
         lon = float(lon)
     except ValueError:
-        return _add_cors_headers(JsonResponse({"error": "Invalid coordinates."}, status=400))
+        return _add_cors_headers(JsonResponse({"error": "Invalid coordinates."}, status=400), request)
         
     # very simple distance matching, assuming exact coordinates for demo
     qs = RiskEvaluation.objects.filter(
@@ -200,14 +200,14 @@ def risk_history(request):
             "soil_moisture": r.soil_moisture,
             "created_at": r.created_at.isoformat(),
         })
-    return _add_cors_headers(JsonResponse(data, safe=False))
+    return _add_cors_headers(JsonResponse(data, safe=False), request)
 
 
 @csrf_exempt
 @require_http_methods(["GET", "POST", "OPTIONS"])
 def alerts(request):
     if request.method == "OPTIONS":
-        return _add_cors_headers(JsonResponse({}, status=204))
+        return _add_cors_headers(JsonResponse({}, status=204), request)
         
     if request.method == "GET":
         qs = Alert.objects.order_by('-created_at')[:50]
@@ -225,13 +225,13 @@ def alerts(request):
                 "authority": a.authority,
                 "created_at": a.created_at.isoformat(),
             })
-        return _add_cors_headers(JsonResponse(data, safe=False))
+        return _add_cors_headers(JsonResponse(data, safe=False), request)
         
     if request.method == "POST":
         try:
             payload = json.loads(request.body)
         except (TypeError, ValueError):
-            return _add_cors_headers(JsonResponse({"error": "Invalid JSON."}, status=400))
+            return _add_cors_headers(JsonResponse({"error": "Invalid JSON."}, status=400), request)
             
         alert = Alert.objects.create(
             location_name=payload.get("location_name"),
@@ -243,4 +243,4 @@ def alerts(request):
             message=payload.get("message"),
             authority=payload.get("authority", "System")
         )
-        return _add_cors_headers(JsonResponse({"success": True, "id": alert.id}))
+        return _add_cors_headers(JsonResponse({"success": True, "id": alert.id}), request)

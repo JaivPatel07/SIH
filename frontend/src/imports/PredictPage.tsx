@@ -170,7 +170,7 @@ export function PredictPage() {
             <span className="text-sm font-semibold text-teal-300 tracking-wide">PRAVAAH · Location Prediction</span>
           </div>
           <h1 className="text-2xl md:text-3xl font-black text-white mb-1">
-            Get live risk prediction for any location
+            Assess flood and landslide risk for any location
           </h1>
           <p className="text-slate-400 text-sm mb-5">
             Search a village, town, or click on the map — PRAVAAH fetches real environmental data and runs flood + landslide models.
