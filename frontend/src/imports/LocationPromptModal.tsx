@@ -1,39 +1,56 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { MapPin, Crosshair, Loader, ArrowRight } from "lucide-react";
 import { useRisk } from "../context/RiskContext";
 import { LocationSearch } from "./LocationSearch";
 
 export function LocationPromptModal() {
-  const { isLocationSet, setSelectedLocation, setIsLocationSet } = useRisk();
+  const { isLocationSet, setSelectedLocation } = useRisk();
   const [geoLoading, setGeoLoading] = useState(false);
+  const [geoError, setGeoError] = useState("");
+  const geoAttempt = useRef(0);
+  const geoTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   if (isLocationSet) return null;
 
   const handleUseCurrent = () => {
+    const attempt = ++geoAttempt.current;
+    setGeoError("");
     setGeoLoading(true);
+    if (geoTimeout.current) window.clearTimeout(geoTimeout.current);
+    geoTimeout.current = window.setTimeout(() => {
+      if (geoAttempt.current !== attempt) return;
+      setGeoLoading(false);
+      setGeoError("Location access is taking too long. Search for a place or use the default area below.");
+    }, 8000);
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          try {
-            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&addressdetails=1`);
-            const data = await res.json();
-            const a = data.address || {};
-            const name = a.village || a.town || a.city || a.county || "My Location";
-            setSelectedLocation({ name, latitude: pos.coords.latitude, longitude: pos.coords.longitude });
-          } catch {
-            setSelectedLocation({ name: "My Location", latitude: pos.coords.latitude, longitude: pos.coords.longitude });
-          }
+        (pos) => {
+          if (geoAttempt.current !== attempt) return;
+          if (geoTimeout.current) window.clearTimeout(geoTimeout.current);
+          // Use coordinates immediately. Reverse geocoding is optional and
+          // must never keep the location dialog waiting.
+          setSelectedLocation({ name: "Current location", latitude: pos.coords.latitude, longitude: pos.coords.longitude });
         },
-        (err) => {
-          console.error(err);
+        () => {
+          if (geoAttempt.current !== attempt) return;
+          if (geoTimeout.current) window.clearTimeout(geoTimeout.current);
           setGeoLoading(false);
-          alert("Could not get location automatically. Please search manually.");
-        }
+          setGeoError("We could not get your location. Allow location access or search for a place below.");
+        },
+        { enableHighAccuracy: false, maximumAge: 300000, timeout: 10000 },
       );
     } else {
+      if (geoTimeout.current) window.clearTimeout(geoTimeout.current);
       setGeoLoading(false);
-      alert("Geolocation is not supported by your browser.");
+      setGeoError("Your browser does not support location access. Please search for a place below.");
     }
+  };
+
+  const handleUseDefaultArea = () => {
+    geoAttempt.current += 1;
+    if (geoTimeout.current) window.clearTimeout(geoTimeout.current);
+    setGeoLoading(false);
+    setSelectedLocation({ name: "Dharali", latitude: 30.6739, longitude: 78.4827 });
   };
 
   return (
@@ -46,7 +63,7 @@ export function LocationPromptModal() {
           <div className="min-w-0">
             <h2 className="text-lg font-extrabold tracking-tight text-slate-900">Where are you located?</h2>
             <p className="mt-1 text-sm leading-relaxed text-slate-500">
-              PRAVAAH needs your area of interest to fetch live flood and landslide risk.
+              Choose an area to view available environmental inputs and prototype risk estimates.
             </p>
           </div>
         </div>
@@ -59,10 +76,11 @@ export function LocationPromptModal() {
           >
             <span className="flex items-center gap-3">
               {geoLoading ? <Loader size={20} className="animate-spin" /> : <Crosshair size={20} />}
-              <span className="text-sm">Use my current location</span>
+              <span className="text-sm">{geoLoading ? "Getting your location…" : "Use my current location"}</span>
             </span>
             <ArrowRight size={18} className="opacity-60 shrink-0" />
           </button>
+          {geoError && <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800" role="alert">{geoError}</p>}
 
           <div className="flex items-center gap-3">
             <div className="h-px bg-slate-200 flex-1" />
@@ -78,7 +96,7 @@ export function LocationPromptModal() {
           </div>
 
           <button
-            onClick={() => setIsLocationSet(true)}
+            onClick={handleUseDefaultArea}
             className="w-full text-center text-xs font-medium text-slate-400 hover:text-slate-600 pt-1"
           >
             Skip for now — show the default Dharali area
