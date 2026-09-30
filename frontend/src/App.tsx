@@ -385,6 +385,7 @@ function Landing({
 }: {
   onNavigate: (screen: Screen) => void;
 }) {
+  const { setIsLocationSet } = useRisk();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [demoState, setDemoState] = useState<"idle" | "scanning" | "result">("idle");
   const features = [
@@ -397,6 +398,10 @@ function Landing({
   const runSafetyDemo = () => {
     setDemoState("scanning");
     window.setTimeout(() => setDemoState("result"), 1600);
+  };
+  const continueAsUser = () => {
+    setIsLocationSet(false);
+    onNavigate("dashboard");
   };
 
   return (
@@ -443,7 +448,7 @@ function Landing({
               </Button>
             ))}
           </div>
-          <Button variant="secondary" className="desktop-cta" onClick={() => onNavigate("dashboard")}>
+          <Button variant="secondary" className="desktop-cta" onClick={continueAsUser}>
             Continue as User <Navigation size={16} />
           </Button>
           <Button variant="ghost" className="mobile-menu !p-2 text-white" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
@@ -487,7 +492,7 @@ function Landing({
                 <ShieldCheck size={16} /> Why PRAVAAH
               </Button>
               <div className="my-2 h-px bg-white/10" />
-              <Button className="w-full" onClick={() => { setMobileMenuOpen(false); onNavigate("dashboard"); }}>
+              <Button className="w-full" onClick={() => { setMobileMenuOpen(false); continueAsUser(); }}>
                 Continue as User <Navigation size={16} />
               </Button>
             </div>
@@ -1960,7 +1965,7 @@ function ProductApp() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
   const screen = (Object.entries(screenPaths).find(([, path]) => path === location.pathname)?.[0] ?? "dashboard") as Screen;
-  if (location.pathname === "/") return <Landing onNavigate={navigate} />;
+  if (location.pathname === "/") return <><LocationPromptModal /><Landing onNavigate={navigate} /></>;
   return (
     <>
       <LocationPromptModal />
